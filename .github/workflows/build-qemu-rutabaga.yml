@@ -1,0 +1,40 @@
+name: 🚀 Build Termux QEMU (Rutabaga Edition)
+
+# 允许你随时在 Actions 页面手动点击按钮触发编译
+on:
+  workflow_dispatch:
+
+jobs:
+  build-qemu:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. 把你爆改过的代码库拉取到 GitHub 服务器
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # 2. 释放磁盘空间 (GitHub 服务器默认空间较小，防爆盘神操作)
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+      # 3. 启动 Termux 官方 Docker 并执行跨端编译！
+      - name: Build QEMU with Rutabaga in Termux Docker
+        run: |
+          echo "[*] 开始启动 Termux 官方编译环境..."
+          # 调用官方脚本，在 Docker 内置顶编译 x86-64 主包（自动产出 aarch64 子包）
+          # -a aarch64 指定目标架构为你的手机
+          ./scripts/run-docker.sh ./build-package.sh -a aarch64 qemu-system-x86-64
+
+      # 4. 把编译好的 .deb 安装包打包并上传，供你下载
+      - name: Upload QEMU Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-rutabaga-aarch64-debs
+          path: output/*.deb
+          retention-days: 7
