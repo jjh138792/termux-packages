@@ -13,66 +13,64 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Free up disk space (防爆盘)
+      - name: Free up disk space
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
-      # ！！！【神级黑客操作】：动态劫持 QEMU 的 build.sh ！！！
-      - name: Inject Rutabaga FFI Compilation Hook
+      - name: Architect Rutabaga Package and Patch QEMU
         run: |
-          QEMU_BUILD_SCRIPT="x11-packages/qemu-system-x86-64/build.sh"
-          # 如果你的仓库结构里没有 x11-packages，就换成 packages/qemu-system-x86-64/build.sh
-          
-          # 1. 强插 --enable-rutabaga 编译开关
-          sed -i 's/--enable-virglrenderer/--enable-virglrenderer --enable-rutabaga/g' $QEMU_BUILD_SCRIPT
-          
-          # 2. 在 QEMU 编译前，利用 Termux 官方钩子，强行下载并用 Rust 编译 Rutabaga 库！
-          cat << 'EOF' > patch_hook.sh
-          termux_step_pre_configure() {
-              echo "[*] 开始执行终极寄生：手搓 Rutabaga_gfx_ffi..."
-              
-              # 确保安装了 Rust 编译链
+          # 1. 建立独立的 Rutabaga FFI 原生编译包
+          mkdir -p packages/rutabaga-gfx-ffi
+          cat << 'EOF' > packages/rutabaga-gfx-ffi/build.sh
+          TERMUX_PKG_HOMEPAGE=https://github.com/google/crosvm
+          TERMUX_PKG_DESCRIPTION="Rutabaga GFX FFI"
+          TERMUX_PKG_LICENSE="BSD"
+          TERMUX_PKG_VERSION=0.1.2
+          TERMUX_PKG_SKIP_SRC_EXTRACT=true
+
+          termux_step_make() {
               termux_setup_rust
-              
-              # 拉取 Google CrosVM 的 Rutabaga 源码
-              cd $TERMUX_PKG_SRCDIR
-              git clone https://github.com/google/crosvm.git
+              echo "[*] Cloning CrosVM repository..."
+              git clone --recursive https://github.com/google/crosvm.git
+              cd crosvm/rutabaga_gfx/ffi
+              echo "[*] Compiling Rutabaga FFI for aarch64..."
+              cargo build --release --target aarch64-linux-android
+          }
+
+          termux_step_make_install() {
               cd crosvm/rutabaga_gfx/ffi
               
-              # 针对手机的 aarch64 架构进行交叉编译
-              cargo build --release --target aarch64-linux-android
+              # 注册动态链接库与头文件
+              install -Dm755 target/aarch64-linux-android/release/librutabaga_gfx_ffi.so $TERMUX_PREFIX/lib/librutabaga_gfx_ffi.so
+              install -Dm644 src/include/rutabaga_gfx_ffi.h $TERMUX_PREFIX/include/rutabaga_gfx_ffi.h
               
-              # 强行把编译好的 .so 库和头文件塞进 Termux 系统的交叉编译目录里！
-              cp target/aarch64-linux-android/release/librutabaga_gfx_ffi.so $TERMUX_PREFIX/lib/
-              cp src/include/rutabaga_gfx_ffi.h $TERMUX_PREFIX/include/
-              
-              # 伪造 pkg-config 文件骗过 QEMU 的检查！
+              # 生成 Meson 兼容的标识符 (注意：此处使用 PC_EOF 使环境变量在构建期动态展开)
               mkdir -p $TERMUX_PREFIX/lib/pkgconfig
-              cat << 'PC_EOF' > $TERMUX_PREFIX/lib/pkgconfig/rutabaga_gfx.pc
-          Name: rutabaga_gfx
+              cat << PC_EOF > $TERMUX_PREFIX/lib/pkgconfig/rutabaga_gfx_ffi.pc
+          Name: rutabaga_gfx_ffi
           Description: Rutabaga GFX FFI
           Version: 0.1.2
           Libs: -L${TERMUX_PREFIX}/lib -lrutabaga_gfx_ffi
           Cflags: -I${TERMUX_PREFIX}/include
           PC_EOF
-              
-              echo "[*] Rutabaga 心脏植入完毕！"
-              cd $TERMUX_PKG_BUILDDIR
           }
           EOF
-          
-          # 把钩子代码和原来的 build.sh 合并
-          cat patch_hook.sh $QEMU_BUILD_SCRIPT > temp.sh && mv temp.sh $QEMU_BUILD_SCRIPT
-          chmod +x $QEMU_BUILD_SCRIPT
-      # 正式拉起官方 Docker 引擎执行跨端编译
-      - name: Build QEMU with Rutabaga in Termux Docker
+
+          # 2. 修改 QEMU 构建参数以挂载 Rutabaga 引擎
+          QEMU_BUILD_SCRIPT="x11-packages/qemu-system-x86-64/build.sh"
+          if [ ! -f "$QEMU_BUILD_SCRIPT" ]; then
+              QEMU_BUILD_SCRIPT="packages/qemu-system-x86-64/build.sh"
+          fi
+          sed -i 's/--enable-virglrenderer/--enable-virglrenderer --enable-rutabaga/g' $QEMU_BUILD_SCRIPT
+
+      - name: Execute Sequential Cross-Compilation
         run: |
-          echo "[*] 开始引爆 Docker 编译舱..."
-          # ！！！【绝对核心修正】：必须加上 -I 参数，拒绝重编依赖，直接白嫖预编译包！ ！！！
-          ./scripts/run-docker.sh ./build-package.sh -a aarch64 -I qemu-system-x86-64
+          echo "[*] 激活 Docker 编译舱：按序执行 Rutabaga 与 QEMU 拓扑构建..."
+          # 传入两个目标包名实现级联编译，保留 -I 跳过多余环境依赖
+          ./scripts/run-docker.sh ./build-package.sh -a aarch64 -I rutabaga-gfx-ffi qemu-system-x86-64
 
       - name: Upload QEMU Artifacts
         uses: actions/upload-artifact@v4
@@ -80,4 +78,3 @@ jobs:
           name: qemu-rutabaga-aarch64-debs
           path: output/*.deb
           retention-days: 7
-          
