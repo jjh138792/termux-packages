@@ -22,44 +22,45 @@ jobs:
 
       - name: Architect Rutabaga Package and Patch QEMU
         run: |
-          # 1. 建立独立的 Rutabaga FFI 原生编译包
           mkdir -p packages/rutabaga-gfx-ffi
           cat << 'EOF' > packages/rutabaga-gfx-ffi/build.sh
-          TERMUX_PKG_HOMEPAGE=https://github.com/google/crosvm
+          # 【核心修正】：指向独立后的新仓库坐标！
+          TERMUX_PKG_HOMEPAGE=https://github.com/magma-gpu/rutabaga_gfx
           TERMUX_PKG_DESCRIPTION="Rutabaga GFX FFI"
           TERMUX_PKG_LICENSE="BSD"
-          TERMUX_PKG_VERSION=0.1.2
+          TERMUX_PKG_VERSION=0.1.3
           TERMUX_PKG_SKIP_SRC_EXTRACT=true
 
           termux_step_make() {
               termux_setup_rust
-              echo "[*] Cloning CrosVM repository..."
-              git clone --recursive https://github.com/google/crosvm.git
-              cd crosvm/rutabaga_gfx/ffi
+              echo "[*] Cloning standalone Rutabaga_gfx repository..."
+              # 【核心修正】：直接拉取独立后的新代码库
+              git clone https://github.com/magma-gpu/rutabaga_gfx.git
+              cd rutabaga_gfx/ffi
               echo "[*] Compiling Rutabaga FFI for aarch64..."
               cargo build --release --target aarch64-linux-android
           }
 
           termux_step_make_install() {
-              cd crosvm/rutabaga_gfx/ffi
+              cd rutabaga_gfx/ffi
               
               # 注册动态链接库与头文件
               install -Dm755 target/aarch64-linux-android/release/librutabaga_gfx_ffi.so $TERMUX_PREFIX/lib/librutabaga_gfx_ffi.so
               install -Dm644 src/include/rutabaga_gfx_ffi.h $TERMUX_PREFIX/include/rutabaga_gfx_ffi.h
               
-              # 生成 Meson 兼容的标识符 (注意：此处使用 PC_EOF 使环境变量在构建期动态展开)
+              # 生成 Meson 兼容的标识符
               mkdir -p $TERMUX_PREFIX/lib/pkgconfig
               cat << PC_EOF > $TERMUX_PREFIX/lib/pkgconfig/rutabaga_gfx_ffi.pc
           Name: rutabaga_gfx_ffi
           Description: Rutabaga GFX FFI
-          Version: 0.1.2
+          Version: 0.1.3
           Libs: -L${TERMUX_PREFIX}/lib -lrutabaga_gfx_ffi
           Cflags: -I${TERMUX_PREFIX}/include
           PC_EOF
           }
           EOF
 
-          # 2. 修改 QEMU 构建参数以挂载 Rutabaga 引擎
+          # 修改 QEMU 构建参数以挂载 Rutabaga 引擎
           QEMU_BUILD_SCRIPT="x11-packages/qemu-system-x86-64/build.sh"
           if [ ! -f "$QEMU_BUILD_SCRIPT" ]; then
               QEMU_BUILD_SCRIPT="packages/qemu-system-x86-64/build.sh"
@@ -69,7 +70,6 @@ jobs:
       - name: Execute Sequential Cross-Compilation
         run: |
           echo "[*] 激活 Docker 编译舱：按序执行 Rutabaga 与 QEMU 拓扑构建..."
-          # 传入两个目标包名实现级联编译，保留 -I 跳过多余环境依赖
           ./scripts/run-docker.sh ./build-package.sh -a aarch64 -I rutabaga-gfx-ffi qemu-system-x86-64
 
       - name: Upload QEMU Artifacts
