@@ -30,11 +30,14 @@ jobs:
           TERMUX_PKG_LICENSE="BSD"
           TERMUX_PKG_VERSION=0.1.3
           TERMUX_PKG_SKIP_SRC_EXTRACT=true
-
+          
           termux_step_make() {
               termux_setup_rust
+              
+              # ！！！【核心修补】：给宿主机 Rust 编译器强行下发 Android 跨端核心库！ ！！！
+              rustup target add aarch64-linux-android
+              
               echo "[*] Cloning standalone Rutabaga_gfx repository..."
-              # 【核心修正】：直接拉取独立后的新代码库
               git clone https://github.com/magma-gpu/rutabaga_gfx.git
               cd rutabaga_gfx/ffi
               echo "[*] Compiling Rutabaga FFI for aarch64..."
