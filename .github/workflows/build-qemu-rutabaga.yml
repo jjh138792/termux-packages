@@ -67,17 +67,21 @@ jobs:
           PC_EOF
           }
           EOF
-
+          
           QEMU_BUILD_SCRIPT="x11-packages/qemu-system-x86-64/build.sh"
           if [ ! -f "$QEMU_BUILD_SCRIPT" ]; then
               QEMU_BUILD_SCRIPT="packages/qemu-system-x86-64/build.sh"
           fi
 
-          # ！！！【终极净化】：彻底抛弃静态文件的正则注入，依靠命令行的强制拓扑图传递依赖 ！！！
-          # 清洗官方默认的 disable 参数，并利用 Bash 的安全追加特性注入正确的 enable 开关
+          # 注入依赖图谱，打破沙盒隔离限制
+          sed -i -E 's/^(TERMUX_PKG_DEPENDS=")/\1rutabaga-gfx-ffi, /' $QEMU_BUILD_SCRIPT
+          sed -i -E 's/^(TERMUX_PKG_BUILD_DEPENDS=")/\1rutabaga-gfx-ffi, /' $QEMU_BUILD_SCRIPT
+          
+          # ！！！【最后的拼图：清洗 disable 拦截，精准注入带 -gfx 的原生参数】！！！
+          sed -i 's/--disable-rutabaga-gfx//g' $QEMU_BUILD_SCRIPT
           sed -i 's/--disable-rutabaga//g' $QEMU_BUILD_SCRIPT
-          echo 'TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" --enable-rutabaga "' >> $QEMU_BUILD_SCRIPT
-
+          echo 'TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" --enable-rutabaga-gfx "' >> $QEMU_BUILD_SCRIPT
+          
       - name: Execute Sequential Cross-Compilation
         run: |
           echo "[*] 激活 Docker 编译舱：按序执行 Rutabaga 与 QEMU 拓扑构建..."
