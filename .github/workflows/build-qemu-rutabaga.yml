@@ -33,12 +33,14 @@ jobs:
           
           termux_step_make() {
               termux_setup_rust
-              
-              # ！！！【核心修补】：给宿主机 Rust 编译器强行下发 Android 跨端核心库！ ！！！
               rustup target add aarch64-linux-android
               
               echo "[*] Cloning standalone Rutabaga_gfx repository..."
               git clone https://github.com/magma-gpu/rutabaga_gfx.git
+              
+              # ！！！【斩断枷锁】：物理干碎 Google 硬编码的旧版工具链限制！强行使用 Termux 环境！ ！！！
+              rm -f rutabaga_gfx/rust-toolchain rutabaga_gfx/rust-toolchain.toml
+              
               cd rutabaga_gfx/ffi
               echo "[*] Compiling Rutabaga FFI for aarch64..."
               cargo build --release --target aarch64-linux-android
