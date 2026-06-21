@@ -84,9 +84,19 @@ jobs:
           
       - name: Execute Sequential Cross-Compilation
         run: |
-          echo "[*] 激活 Docker 编译舱：按序执行 Rutabaga 与 QEMU 拓扑构建..."
-          # 这一行指令本身已经构成了完整且牢不可破的沙盒依赖链
+          echo "[*] 启动 Docker 交叉编译环境..."
           ./scripts/run-docker.sh ./build-package.sh -a aarch64 -I rutabaga-gfx-ffi qemu-system-x86-64
+
+      # ！！！【胜利的扫尾：把冒号改成下划线，满足 GitHub 的洁癖】！！！
+      - name: Sanitize Artifact Filenames
+        run: |
+          cd output
+          for f in *.deb; do
+            if [[ "$f" == *":"* ]]; then
+              mv "$f" "${f//:/_}"
+              echo "[*] 重命名文件: $f -> ${f//:/_}"
+            fi
+          done
 
       - name: Upload QEMU Artifacts
         uses: actions/upload-artifact@v4
@@ -94,4 +104,3 @@ jobs:
           name: qemu-rutabaga-aarch64-debs
           path: output/*.deb
           retention-days: 7
-          
