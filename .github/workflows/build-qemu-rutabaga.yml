@@ -67,12 +67,12 @@ jobs:
           # 把钩子代码和原来的 build.sh 合并
           cat patch_hook.sh $QEMU_BUILD_SCRIPT > temp.sh && mv temp.sh $QEMU_BUILD_SCRIPT
           chmod +x $QEMU_BUILD_SCRIPT
-
       # 正式拉起官方 Docker 引擎执行跨端编译
       - name: Build QEMU with Rutabaga in Termux Docker
         run: |
           echo "[*] 开始引爆 Docker 编译舱..."
-          ./scripts/run-docker.sh ./build-package.sh -a aarch64 qemu-system-x86-64
+          # ！！！【绝对核心修正】：必须加上 -I 参数，拒绝重编依赖，直接白嫖预编译包！ ！！！
+          ./scripts/run-docker.sh ./build-package.sh -a aarch64 -I qemu-system-x86-64
 
       - name: Upload QEMU Artifacts
         uses: actions/upload-artifact@v4
