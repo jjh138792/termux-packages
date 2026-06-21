@@ -39,7 +39,7 @@ jobs:
               rustup target add aarch64-linux-android
               
               echo "[*] 从静态 CDN 强制抓取冻结版 0.1.2..."
-              # 物理级绕过 403 拦截
+              # 物理级绕过 403 拦截，直取纯血代码
               curl -sSL -H "User-Agent: Termux-Builder/1.0" https://static.crates.io/crates/rutabaga_gfx_ffi/rutabaga_gfx_ffi-0.1.2.crate | tar -xz
               
               cd rutabaga_gfx_ffi-0.1.2
@@ -73,17 +73,15 @@ jobs:
               QEMU_BUILD_SCRIPT="packages/qemu-system-x86-64/build.sh"
           fi
 
-          # 完美绕过 Python 崩溃的白名单注入
-          sed -i -E 's/(TERMUX_PKG_DEPENDS=")/\1rutabaga-gfx-ffi, /' $QEMU_BUILD_SCRIPT
-          sed -i -E 's/(TERMUX_PKG_BUILD_DEPENDS=")/\1rutabaga-gfx-ffi, /' $QEMU_BUILD_SCRIPT
-          
-          # ！！！【致命修正】：清洗旧配置，极其安全地追加正确的 --enable-rutabaga-gfx 指令 ！！！
-          sed -i 's/--disable-rutabaga-gfx//g' $QEMU_BUILD_SCRIPT
-          echo 'TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" --enable-rutabaga-gfx "' >> $QEMU_BUILD_SCRIPT
+          # ！！！【终极净化】：彻底抛弃静态文件的正则注入，依靠命令行的强制拓扑图传递依赖 ！！！
+          # 清洗官方默认的 disable 参数，并利用 Bash 的安全追加特性注入正确的 enable 开关
+          sed -i 's/--disable-rutabaga//g' $QEMU_BUILD_SCRIPT
+          echo 'TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" --enable-rutabaga "' >> $QEMU_BUILD_SCRIPT
 
       - name: Execute Sequential Cross-Compilation
         run: |
           echo "[*] 激活 Docker 编译舱：按序执行 Rutabaga 与 QEMU 拓扑构建..."
+          # 这一行指令本身已经构成了完整且牢不可破的沙盒依赖链
           ./scripts/run-docker.sh ./build-package.sh -a aarch64 -I rutabaga-gfx-ffi qemu-system-x86-64
 
       - name: Upload QEMU Artifacts
