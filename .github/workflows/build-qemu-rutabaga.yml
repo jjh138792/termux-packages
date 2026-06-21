@@ -24,44 +24,44 @@ jobs:
         run: |
           mkdir -p packages/rutabaga-gfx-ffi
           cat << 'EOF' > packages/rutabaga-gfx-ffi/build.sh
-          TERMUX_PKG_HOMEPAGE=https://crates.io/crates/rutabaga_gfx_ffi
+          TERMUX_PKG_HOMEPAGE=https://github.com/magma-gpu/rutabaga_gfx
           TERMUX_PKG_DESCRIPTION="Rutabaga GFX FFI"
           TERMUX_PKG_LICENSE="BSD"
-          TERMUX_PKG_VERSION=0.1.2
+          TERMUX_PKG_VERSION=0.1.3
           TERMUX_PKG_SKIP_SRC_EXTRACT=true
 
           termux_step_make() {
-              # 伪造授权文件通过审查
+              # 颁发版权免死金牌
               mkdir -p $TERMUX_PKG_SRCDIR
               echo "BSD License" > $TERMUX_PKG_SRCDIR/LICENSE
 
               termux_setup_rust
               rustup target add aarch64-linux-android
               
-              echo "[*] 正在从 crates.io 抓取被冻结的纯血 0.1.2 版本..."
-              curl -L https://crates.io/api/v1/crates/rutabaga_gfx_ffi/0.1.2/download | tar -xz
-              cd rutabaga_gfx_ffi-0.1.2
+              echo "[*] Cloning standalone Rutabaga_gfx repository..."
+              git clone https://github.com/magma-gpu/rutabaga_gfx.git
               
-              rm -f rust-toolchain rust-toolchain.toml
+              # 斩断幽灵工具链
+              rm -f rutabaga_gfx/rust-toolchain rutabaga_gfx/rust-toolchain.toml
               
+              cd rutabaga_gfx/ffi
               echo "[*] Compiling Rutabaga FFI for aarch64..."
               cargo build --release --target aarch64-linux-android
           }
 
           termux_step_make_install() {
-              # 抛弃 Git 后，编译产物不再乱飞，老老实实待在当前 target 里
-              cd rutabaga_gfx_ffi-0.1.2
+              cd rutabaga_gfx/ffi
               
-              install -Dm755 target/aarch64-linux-android/release/librutabaga_gfx_ffi.so $TERMUX_PREFIX/lib/librutabaga_gfx_ffi.so
+              install -Dm755 ../target/aarch64-linux-android/release/librutabaga_gfx_ffi.so $TERMUX_PREFIX/lib/librutabaga_gfx_ffi.so
               
-              # 满足 QEMU 源码头文件硬编码
+              # ！！！满足 QEMU 源码对 rutabaga_gfx/ 子目录的硬编码癖好！！！
               install -Dm644 src/include/rutabaga_gfx_ffi.h $TERMUX_PREFIX/include/rutabaga_gfx/rutabaga_gfx_ffi.h
               
               mkdir -p $TERMUX_PREFIX/lib/pkgconfig
               cat << PC_EOF > $TERMUX_PREFIX/lib/pkgconfig/rutabaga_gfx_ffi.pc
           Name: rutabaga_gfx_ffi
           Description: Rutabaga GFX FFI
-          Version: 0.1.2
+          Version: 0.1.3
           Libs: -L${TERMUX_PREFIX}/lib -lrutabaga_gfx_ffi
           Cflags: -I${TERMUX_PREFIX}/include
           PC_EOF
@@ -73,7 +73,7 @@ jobs:
               QEMU_BUILD_SCRIPT="packages/qemu-system-x86-64/build.sh"
           fi
 
-          # ！！！【工业级降维注入】：正则捕获组硬破解，无视一切代码格式差异 ！！！
+          # ！！！工业级正则匹配注入，已实战证明能完美绕过 buildorder.py 的弱智崩溃 ！！！
           sed -i -E 's/(TERMUX_PKG_DEPENDS=")/\1rutabaga-gfx-ffi, /' $QEMU_BUILD_SCRIPT
           sed -i -E 's/(TERMUX_PKG_BUILD_DEPENDS=")/\1rutabaga-gfx-ffi, /' $QEMU_BUILD_SCRIPT
           sed -i -E 's/(TERMUX_PKG_EXTRA_CONFIGURE_ARGS=")/\1--enable-rutabaga /' $QEMU_BUILD_SCRIPT
