@@ -74,6 +74,10 @@ jobs:
           fi
           sed -i 's/--enable-virglrenderer/--enable-virglrenderer --enable-rutabaga/g' $QEMU_BUILD_SCRIPT
 
+          # ！！！【终极沙盒豁免】：动态注入运行时与编译期的白名单 ！！！
+          echo 'TERMUX_PKG_DEPENDS+=", rutabaga-gfx-ffi"' >> $QEMU_BUILD_SCRIPT
+          echo 'TERMUX_PKG_BUILD_DEPENDS+=", rutabaga-gfx-ffi"' >> $QEMU_BUILD_SCRIPT
+          
       - name: Execute Sequential Cross-Compilation
         run: |
           echo "[*] 激活 Docker 编译舱：按序执行 Rutabaga 与 QEMU 拓扑构建..."
