@@ -39,8 +39,8 @@ jobs:
               rustup target add aarch64-linux-android
               
               echo "[*] 从静态 CDN 强制抓取冻结版 0.1.2..."
-              # ！！！【终极核心】：直连底层静态 CDN，附加专属 User-Agent 伪装，绝对物理级绕过 403 拦截！！！
-              curl -sSL -H "User-Agent: JJHBlog-Builder/1.0" https://static.crates.io/crates/rutabaga_gfx_ffi/rutabaga_gfx_ffi-0.1.2.crate | tar -xz
+              # 物理级绕过 403 拦截
+              curl -sSL -H "User-Agent: Termux-Builder/1.0" https://static.crates.io/crates/rutabaga_gfx_ffi/rutabaga_gfx_ffi-0.1.2.crate | tar -xz
               
               cd rutabaga_gfx_ffi-0.1.2
               rm -f rust-toolchain rust-toolchain.toml
@@ -73,10 +73,13 @@ jobs:
               QEMU_BUILD_SCRIPT="packages/qemu-system-x86-64/build.sh"
           fi
 
-          # 工业级正则匹配注入，完美绕过 Python 崩溃
+          # 完美绕过 Python 崩溃的白名单注入
           sed -i -E 's/(TERMUX_PKG_DEPENDS=")/\1rutabaga-gfx-ffi, /' $QEMU_BUILD_SCRIPT
           sed -i -E 's/(TERMUX_PKG_BUILD_DEPENDS=")/\1rutabaga-gfx-ffi, /' $QEMU_BUILD_SCRIPT
-          sed -i -E 's/(TERMUX_PKG_EXTRA_CONFIGURE_ARGS=")/\1--enable-rutabaga /' $QEMU_BUILD_SCRIPT
+          
+          # ！！！【致命修正】：清洗旧配置，极其安全地追加正确的 --enable-rutabaga-gfx 指令 ！！！
+          sed -i 's/--disable-rutabaga-gfx//g' $QEMU_BUILD_SCRIPT
+          echo 'TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" --enable-rutabaga-gfx "' >> $QEMU_BUILD_SCRIPT
 
       - name: Execute Sequential Cross-Compilation
         run: |
