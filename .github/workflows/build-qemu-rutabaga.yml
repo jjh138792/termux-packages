@@ -1,6 +1,5 @@
-name: 🚀 Build Termux QEMU (Rutabaga Edition)
+name: 🚀 Build Termux QEMU (Rutabaga 满血零拷贝版)
 
-# 允许你随时在 Actions 页面手动点击按钮触发编译
 on:
   workflow_dispatch:
 
@@ -9,32 +8,76 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      # 1. 把你爆改过的代码库拉取到 GitHub 服务器
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      # 2. 释放磁盘空间 (GitHub 服务器默认空间较小，防爆盘神操作)
-      - name: Free up disk space
+      - name: Free up disk space (防爆盘)
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
-      # 3. 启动 Termux 官方 Docker 并执行跨端编译！
+      # ！！！【神级黑客操作】：动态劫持 QEMU 的 build.sh ！！！
+      - name: Inject Rutabaga FFI Compilation Hook
+        run: |
+          QEMU_BUILD_SCRIPT="x11-packages/qemu-system-x86-64/build.sh"
+          # 如果你的仓库结构里没有 x11-packages，就换成 packages/qemu-system-x86-64/build.sh
+          
+          # 1. 强插 --enable-rutabaga 编译开关
+          sed -i 's/--enable-virglrenderer/--enable-virglrenderer --enable-rutabaga/g' $QEMU_BUILD_SCRIPT
+          
+          # 2. 在 QEMU 编译前，利用 Termux 官方钩子，强行下载并用 Rust 编译 Rutabaga 库！
+          cat << 'EOF' > patch_hook.sh
+          termux_step_pre_configure() {
+              echo "[*] 开始执行终极寄生：手搓 Rutabaga_gfx_ffi..."
+              
+              # 确保安装了 Rust 编译链
+              termux_setup_rust
+              
+              # 拉取 Google CrosVM 的 Rutabaga 源码
+              cd $TERMUX_PKG_SRCDIR
+              git clone https://github.com/google/crosvm.git
+              cd crosvm/rutabaga_gfx/ffi
+              
+              # 针对手机的 aarch64 架构进行交叉编译
+              cargo build --release --target aarch64-linux-android
+              
+              # 强行把编译好的 .so 库和头文件塞进 Termux 系统的交叉编译目录里！
+              cp target/aarch64-linux-android/release/librutabaga_gfx_ffi.so $TERMUX_PREFIX/lib/
+              cp src/include/rutabaga_gfx_ffi.h $TERMUX_PREFIX/include/
+              
+              # 伪造 pkg-config 文件骗过 QEMU 的检查！
+              mkdir -p $TERMUX_PREFIX/lib/pkgconfig
+              cat << 'PC_EOF' > $TERMUX_PREFIX/lib/pkgconfig/rutabaga_gfx.pc
+          Name: rutabaga_gfx
+          Description: Rutabaga GFX FFI
+          Version: 0.1.2
+          Libs: -L${TERMUX_PREFIX}/lib -lrutabaga_gfx_ffi
+          Cflags: -I${TERMUX_PREFIX}/include
+          PC_EOF
+              
+              echo "[*] Rutabaga 心脏植入完毕！"
+              cd $TERMUX_PKG_BUILDDIR
+          }
+          EOF
+          
+          # 把钩子代码和原来的 build.sh 合并
+          cat patch_hook.sh $QEMU_BUILD_SCRIPT > temp.sh && mv temp.sh $QEMU_BUILD_SCRIPT
+          chmod +x $QEMU_BUILD_SCRIPT
+
+      # 正式拉起官方 Docker 引擎执行跨端编译
       - name: Build QEMU with Rutabaga in Termux Docker
         run: |
-          echo "[*] 开始启动 Termux 官方编译环境..."
-          # 调用官方脚本，在 Docker 内置顶编译 x86-64 主包（自动产出 aarch64 子包）
-          # -a aarch64 指定目标架构为你的手机
+          echo "[*] 开始引爆 Docker 编译舱..."
           ./scripts/run-docker.sh ./build-package.sh -a aarch64 qemu-system-x86-64
 
-      # 4. 把编译好的 .deb 安装包打包并上传，供你下载
       - name: Upload QEMU Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: qemu-rutabaga-aarch64-debs
           path: output/*.deb
           retention-days: 7
+          
