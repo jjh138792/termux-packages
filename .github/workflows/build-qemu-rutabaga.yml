@@ -74,9 +74,9 @@ jobs:
           fi
           sed -i 's/--enable-virglrenderer/--enable-virglrenderer --enable-rutabaga/g' $QEMU_BUILD_SCRIPT
 
-          # ！！！【终极沙盒豁免】：动态注入运行时与编译期的白名单 ！！！
-          echo 'TERMUX_PKG_DEPENDS+=", rutabaga-gfx-ffi"' >> $QEMU_BUILD_SCRIPT
-          echo 'TERMUX_PKG_BUILD_DEPENDS+=", rutabaga-gfx-ffi"' >> $QEMU_BUILD_SCRIPT
+          # ！！！【终极沙盒豁免】：放弃 += 拼接，用 sed 优雅植入原生字符串内部，完美骗过 Python 解析器 ！！！
+          sed -i 's/^TERMUX_PKG_DEPENDS="/TERMUX_PKG_DEPENDS="rutabaga-gfx-ffi, /' $QEMU_BUILD_SCRIPT
+          sed -i 's/^TERMUX_PKG_BUILD_DEPENDS="/TERMUX_PKG_BUILD_DEPENDS="rutabaga-gfx-ffi, /' $QEMU_BUILD_SCRIPT
           
       - name: Execute Sequential Cross-Compilation
         run: |
