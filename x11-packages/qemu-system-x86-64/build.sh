@@ -121,7 +121,7 @@ termux_step_configure() {
 		--enable-opengl \
 		--enable-virglrenderer \
 		--enable-rutabaga-gfx \
-		--enable-debug
+		--enable-debug \
 		--disable-vte \
 		--enable-curses \
 		--enable-iconv \
