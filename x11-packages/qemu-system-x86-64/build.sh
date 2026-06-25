@@ -3,11 +3,12 @@ TERMUX_PKG_DESCRIPTION="A generic and open source machine emulator and virtualiz
 TERMUX_PKG_LICENSE="GPL-2.0"
 TERMUX_PKG_MAINTAINER="@termux"
 TERMUX_PKG_VERSION="1:10.2.1"
+TERMUX_DEBUG_BUILD=true
 TERMUX_PKG_SRCURL="https://download.qemu.org/qemu-${TERMUX_PKG_VERSION:2}.tar.xz"
 TERMUX_PKG_SHA256=a3717477d8e2c84d630bfffbc20f6cd3293eb45aa1e6dac6d0cc27689991c9e1
-TERMUX_PKG_DEPENDS="alsa-lib, dtc, gdk-pixbuf, glib, jack2, gtk3, libbz2, libcairo, libcurl, libdw, libepoxy, libgmp, libgnutls, libiconv, libjpeg-turbo, liblzo, libnettle, libnfs, libpixman, libpng, libslirp, libspice-server, libssh, libusb, libusbredir, libx11, mesa, ncurses, pulseaudio, qemu-common, resolv-conf, sdl2 | sdl2-compat, sdl2-image, virglrenderer, zlib, zstd"
+TERMUX_PKG_DEPENDS="alsa-lib, dtc, gdk-pixbuf, glib, jack2, gtk3, libbz2, libcairo, libcurl, libdw, libepoxy, libgmp, libgnutls, libiconv, libjpeg-turbo, liblzo, libnettle, libnfs, libpixman, libpng, libslirp, libspice-server, libssh, libusb, libusbredir, libx11, mesa, ncurses, pulseaudio, qemu-common, resolv-conf, sdl2 | sdl2-compat, sdl2-image, virglrenderer, zlib, zstd, rutabaga-gfx-ffi"
 # Required by configuration script, but I can't find any binary that uses it.
-TERMUX_PKG_BUILD_DEPENDS="libtasn1"
+TERMUX_PKG_BUILD_DEPENDS="libtasn1, rutabaga-gfx-ffi"
 TERMUX_PKG_ANTI_BUILD_DEPENDS="sdl2-compat"
 # Remove files already present in qemu-utils and qemu-common.
 TERMUX_PKG_RM_AFTER_INSTALL="
@@ -120,6 +121,7 @@ termux_step_configure() {
 		--enable-opengl \
 		--enable-virglrenderer \
 		--enable-rutabaga-gfx \
+		--enable-debug
 		--disable-vte \
 		--enable-curses \
 		--enable-iconv \
