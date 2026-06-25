@@ -1,4 +1,4 @@
-name: 🚀 Build Termux QEMU (Rutabaga 满血零拷贝版)
+name: 🚀 Build Termux QEMU (Rutabaga 三位一体满血上帝版)
 
 on:
   workflow_dispatch:
@@ -20,43 +20,70 @@ jobs:
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
-      - name: Architect Rutabaga Package and Patch QEMU
+      - name: Architect Gfxstream and Rutabaga Packages
         run: |
+          # ==========================================
+          # 1. 独立版 Gfxstream (解决 C++ 依赖地狱)
+          # ==========================================
+          mkdir -p packages/gfxstream
+          cat << 'EOF' > packages/gfxstream/build.sh
+          TERMUX_PKG_HOMEPAGE=https://github.com/google/gfxstream
+          TERMUX_PKG_DESCRIPTION="Graphics Streaming Kit (Gfxstream Backend)"
+          TERMUX_PKG_LICENSE="Apache-2.0"
+          TERMUX_PKG_VERSION=0.1.2
+          TERMUX_PKG_DEPENDS="libc++, libdrm"
+          
+          termux_step_make() {
+              # 引入 Termux 的 Meson 交叉编译框架
+              termux_setup_meson
+              
+              echo "[*] 直连 Google 官方独立仓库拉取 Gfxstream..."
+              git clone https://github.com/google/gfxstream.git $TERMUX_PKG_SRCDIR/gfxstream_src
+              cd $TERMUX_PKG_SRCDIR/gfxstream_src
+              
+              # 完全脱离 AOSP 的轻量级独立构建
+              meson setup build \
+                  --cross-file $TERMUX_MESON_CROSSFILE \
+                  --prefix $TERMUX_PREFIX \
+                  --libdir lib \
+                  -Ddefault_library=shared
+                  
+              ninja -C build install
+          }
+          EOF
+
+          # ==========================================
+          # 2. 三位一体版 Rutabaga (三大后端全开)
+          # ==========================================
           mkdir -p packages/rutabaga-gfx-ffi
           cat << 'EOF' > packages/rutabaga-gfx-ffi/build.sh
           TERMUX_PKG_HOMEPAGE=https://github.com/magma-gpu/rutabaga_gfx
-          TERMUX_PKG_DESCRIPTION="Rutabaga GFX FFI (Latest Git)"
+          TERMUX_PKG_DESCRIPTION="Rutabaga GFX FFI (Trinity Edition)"
           TERMUX_PKG_LICENSE="BSD"
           TERMUX_PKG_VERSION=0.1.76
           TERMUX_PKG_SKIP_SRC_EXTRACT=true
-          # 必须先安装 virglrenderer 才能编译带此 feature 的 rutabaga
-          TERMUX_PKG_DEPENDS="virglrenderer"
-          TERMUX_PKG_BUILD_DEPENDS="virglrenderer"
+          
+          # 强依赖三大底层：我们编译的 gfxstream，以及系统的 virgl 和 wayland(为 cross-domain 准备)
+          TERMUX_PKG_DEPENDS="gfxstream, virglrenderer, wayland"
+          TERMUX_PKG_BUILD_DEPENDS="gfxstream, virglrenderer, wayland"
 
           termux_step_make() {
-              # 颁发版权免死金牌
-              mkdir -p $TERMUX_PKG_SRCDIR
-              echo "BSD License" > $TERMUX_PKG_SRCDIR/LICENSE
-
               termux_setup_rust
               rustup target add aarch64-linux-android
               
-              echo "[*] 从 Github 官方源拉取最新版 Rutabaga GFX (带完整子模块)..."
+              echo "[*] 从 Github 官方源拉取最新版 Rutabaga GFX (带完整 minigbm 等子模块)..."
               git clone --recurse-submodules https://github.com/magma-gpu/rutabaga_gfx.git $TERMUX_PKG_SRCDIR/repo
               
               cd $TERMUX_PKG_SRCDIR/repo/ffi
               
-              echo "[*] Compiling Rutabaga FFI for aarch64 with virgl_renderer..."
-              # 抛弃 gfxstream 的 C++ 泥潭，使用官方支持的 virgl_renderer 满血后端
-              cargo build --release --target aarch64-linux-android --features=virgl_renderer
+              echo "[*] 启动 Cargo 编译，三神装全开！..."
+              # ！！！核心破局：全量挂载 virgl_renderer, gfxstream, cross-domain ！！！
+              cargo build --release --target aarch64-linux-android --features="virgl_renderer,gfxstream,cross-domain"
           }
 
           termux_step_make_install() {
               cd $TERMUX_PKG_SRCDIR/repo/ffi
-              
               install -Dm755 target/aarch64-linux-android/release/librutabaga_gfx_ffi.so $TERMUX_PREFIX/lib/librutabaga_gfx_ffi.so
-              
-              # 满足 QEMU 源码对 rutabaga_gfx/ 子目录的硬编码
               install -Dm644 src/include/rutabaga_gfx_ffi.h $TERMUX_PREFIX/include/rutabaga_gfx/rutabaga_gfx_ffi.h
               
               mkdir -p $TERMUX_PREFIX/lib/pkgconfig
@@ -70,29 +97,32 @@ jobs:
           }
           EOF
           
+          # ==========================================
+          # 3. 终极 QEMU 魔改注入
+          # ==========================================
           QEMU_BUILD_SCRIPT="x11-packages/qemu-system-x86-64/build.sh"
           if [ ! -f "$QEMU_BUILD_SCRIPT" ]; then
               QEMU_BUILD_SCRIPT="packages/qemu-system-x86-64/build.sh"
           fi
 
-          # 注入依赖图谱：加入 rutabaga 和 virglrenderer
-          sed -i -E 's/^(TERMUX_PKG_DEPENDS=")/\1rutabaga-gfx-ffi, virglrenderer, /' $QEMU_BUILD_SCRIPT
-          sed -i -E 's/^(TERMUX_PKG_BUILD_DEPENDS=")/\1rutabaga-gfx-ffi, virglrenderer, /' $QEMU_BUILD_SCRIPT
+          # 注入依赖图谱：QEMU 如今有无敌护航编队
+          sed -i -E 's/^(TERMUX_PKG_DEPENDS=")/\1rutabaga-gfx-ffi, gfxstream, virglrenderer, wayland, /' $QEMU_BUILD_SCRIPT
+          sed -i -E 's/^(TERMUX_PKG_BUILD_DEPENDS=")/\1rutabaga-gfx-ffi, gfxstream, virglrenderer, wayland, /' $QEMU_BUILD_SCRIPT
           
-          # ！！！【终极黑客防暴毙补丁：阻止 Strip 并强开 Debug】！！！
+          # 阻止 Strip，强开 Debug 符号，为我们在手机端的硬核 GDB 验尸保留绝对证据！
           echo 'TERMUX_DEBUG_BUILD=true' >> $QEMU_BUILD_SCRIPT
           
-          # 清洗 disable 拦截，精准注入原生参数
+          # 清洗并注入原生参数
           sed -i 's/--disable-rutabaga-gfx//g' $QEMU_BUILD_SCRIPT
           sed -i 's/--disable-rutabaga//g' $QEMU_BUILD_SCRIPT
           echo 'TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" --enable-rutabaga-gfx --enable-debug "' >> $QEMU_BUILD_SCRIPT
-          
+
       - name: Execute Sequential Cross-Compilation
         run: |
           echo "[*] 启动 Docker 交叉编译环境..."
-          ./scripts/run-docker.sh ./build-package.sh -a aarch64 -I rutabaga-gfx-ffi qemu-system-x86-64
+          # ！！！神级调度：严格按顺序编译 Gfxstream -> Rutabaga -> QEMU
+          ./scripts/run-docker.sh ./build-package.sh -a aarch64 -I gfxstream rutabaga-gfx-ffi qemu-system-x86-64
 
-      # ！！！【胜利的扫尾：把冒号改成下划线，满足 GitHub 的洁癖】！！！
       - name: Sanitize Artifact Filenames
         run: |
           cd output
@@ -106,7 +136,7 @@ jobs:
       - name: Upload QEMU Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: qemu-rutabaga-aarch64-debs
+          name: qemu-rutabaga-trinity-aarch64-debs
           path: output/*.deb
           retention-days: 7
           
