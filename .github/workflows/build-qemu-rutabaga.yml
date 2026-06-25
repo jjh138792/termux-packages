@@ -46,7 +46,7 @@ jobs:
               rm -f rust-toolchain rust-toolchain.toml
               
               echo "[*] Compiling Rutabaga FFI for aarch64..."
-              cargo build --release --target aarch64-linux-android --features x-gfxstream-gles
+              cargo build --release --target aarch64-linux-android --features=virgl_renderer
 
           }
 
