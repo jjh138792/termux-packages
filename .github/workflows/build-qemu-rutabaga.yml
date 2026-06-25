@@ -24,11 +24,14 @@ jobs:
         run: |
           mkdir -p packages/rutabaga-gfx-ffi
           cat << 'EOF' > packages/rutabaga-gfx-ffi/build.sh
-          TERMUX_PKG_HOMEPAGE=https://crates.io/crates/rutabaga_gfx_ffi
-          TERMUX_PKG_DESCRIPTION="Rutabaga GFX FFI"
+          TERMUX_PKG_HOMEPAGE=https://github.com/magma-gpu/rutabaga_gfx
+          TERMUX_PKG_DESCRIPTION="Rutabaga GFX FFI (Latest Git)"
           TERMUX_PKG_LICENSE="BSD"
-          TERMUX_PKG_VERSION=0.1.2
+          TERMUX_PKG_VERSION=0.1.76
           TERMUX_PKG_SKIP_SRC_EXTRACT=true
+          # 必须先安装 virglrenderer 才能编译带此 feature 的 rutabaga
+          TERMUX_PKG_DEPENDS="virglrenderer"
+          TERMUX_PKG_BUILD_DEPENDS="virglrenderer"
 
           termux_step_make() {
               # 颁发版权免死金牌
@@ -38,20 +41,18 @@ jobs:
               termux_setup_rust
               rustup target add aarch64-linux-android
               
-              echo "[*] 从静态 CDN 强制抓取冻结版 0.1.2..."
-              # 物理级绕过 403 拦截，直取纯血代码
-              curl -sSL -H "User-Agent: Termux-Builder/1.0" https://static.crates.io/crates/rutabaga_gfx_ffi/rutabaga_gfx_ffi-0.1.2.crate | tar -xz
+              echo "[*] 从 Github 官方源拉取最新版 Rutabaga GFX (带完整子模块)..."
+              git clone --recurse-submodules https://github.com/magma-gpu/rutabaga_gfx.git $TERMUX_PKG_SRCDIR/repo
               
-              cd rutabaga_gfx_ffi-0.1.2
-              rm -f rust-toolchain rust-toolchain.toml
+              cd $TERMUX_PKG_SRCDIR/repo/ffi
               
-              echo "[*] Compiling Rutabaga FFI for aarch64..."
-              cargo build --release --target aarch64-linux-android --features gfxstream-gles
-
+              echo "[*] Compiling Rutabaga FFI for aarch64 with virgl_renderer..."
+              # 抛弃 gfxstream 的 C++ 泥潭，使用官方支持的 virgl_renderer 满血后端
+              cargo build --release --target aarch64-linux-android --features=virgl_renderer
           }
 
           termux_step_make_install() {
-              cd rutabaga_gfx_ffi-0.1.2
+              cd $TERMUX_PKG_SRCDIR/repo/ffi
               
               install -Dm755 target/aarch64-linux-android/release/librutabaga_gfx_ffi.so $TERMUX_PREFIX/lib/librutabaga_gfx_ffi.so
               
@@ -62,7 +63,7 @@ jobs:
               cat << PC_EOF > $TERMUX_PREFIX/lib/pkgconfig/rutabaga_gfx_ffi.pc
           Name: rutabaga_gfx_ffi
           Description: Rutabaga GFX FFI
-          Version: 0.1.2
+          Version: 0.1.76
           Libs: -L${TERMUX_PREFIX}/lib -lrutabaga_gfx_ffi
           Cflags: -I${TERMUX_PREFIX}/include
           PC_EOF
@@ -74,14 +75,17 @@ jobs:
               QEMU_BUILD_SCRIPT="packages/qemu-system-x86-64/build.sh"
           fi
 
-          # 注入依赖图谱，打破沙盒隔离限制
-          sed -i -E 's/^(TERMUX_PKG_DEPENDS=")/\1rutabaga-gfx-ffi, /' $QEMU_BUILD_SCRIPT
-          sed -i -E 's/^(TERMUX_PKG_BUILD_DEPENDS=")/\1rutabaga-gfx-ffi, /' $QEMU_BUILD_SCRIPT
+          # 注入依赖图谱：加入 rutabaga 和 virglrenderer
+          sed -i -E 's/^(TERMUX_PKG_DEPENDS=")/\1rutabaga-gfx-ffi, virglrenderer, /' $QEMU_BUILD_SCRIPT
+          sed -i -E 's/^(TERMUX_PKG_BUILD_DEPENDS=")/\1rutabaga-gfx-ffi, virglrenderer, /' $QEMU_BUILD_SCRIPT
           
-          # ！！！【最后的拼图：清洗 disable 拦截，精准注入带 -gfx 的原生参数】！！！
+          # ！！！【终极黑客防暴毙补丁：阻止 Strip 并强开 Debug】！！！
+          echo 'TERMUX_DEBUG_BUILD=true' >> $QEMU_BUILD_SCRIPT
+          
+          # 清洗 disable 拦截，精准注入原生参数
           sed -i 's/--disable-rutabaga-gfx//g' $QEMU_BUILD_SCRIPT
           sed -i 's/--disable-rutabaga//g' $QEMU_BUILD_SCRIPT
-          echo 'TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" --enable-rutabaga-gfx "' >> $QEMU_BUILD_SCRIPT
+          echo 'TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" --enable-rutabaga-gfx --enable-debug "' >> $QEMU_BUILD_SCRIPT
           
       - name: Execute Sequential Cross-Compilation
         run: |
@@ -105,3 +109,4 @@ jobs:
           name: qemu-rutabaga-aarch64-debs
           path: output/*.deb
           retention-days: 7
+          
