@@ -4,8 +4,8 @@ TERMUX_PKG_LICENSE="BSD"
 TERMUX_PKG_VERSION=0.1.76
 TERMUX_PKG_SKIP_SRC_EXTRACT=true
 
-TERMUX_PKG_DEPENDS="gfxstream, virglrenderer"
-TERMUX_PKG_BUILD_DEPENDS="gfxstream, virglrenderer"
+TERMUX_PKG_DEPENDS="gfxstream"
+TERMUX_PKG_BUILD_DEPENDS="gfxstream"
 
 termux_step_make() {
     termux_setup_rust
@@ -17,7 +17,7 @@ termux_step_make() {
     cd $TERMUX_PKG_SRCDIR/repo/ffi
     
     echo "[*] 启动 Cargo 编译，三神装全开！"
-    cargo build --release --target aarch64-linux-android --features="virgl_renderer,gfxstream"
+    cargo build --release --target aarch64-linux-android --features="virgl_renderer"
 }
 
 termux_step_make_install() {
