@@ -7,7 +7,6 @@ TERMUX_PKG_GIT_BRANCH="main"
 TERMUX_PKG_DEPENDS="libc++, libdrm, libx11"
 TERMUX_PKG_BUILD_DEPENDS="libx11"
 
-# 强开 API 28，解锁现代 Android API
 TERMUX_PKG_API_LEVEL=28
 TERMUX_PKG_EXTRA_CONFIGURE_ARGS=""
 
@@ -31,12 +30,16 @@ termux_step_post_get_source() {
     # VNDK 私有库依赖清洗
     sed -i 's/<vndk\/hardware_buffer.h>/<android\/hardware_buffer.h>/g' $F4
 
-    # ！！！【最后的清剿：强转原生子窗口的 X11 冲突】！！！
+    # ！！！【真正的满血绝杀：先斩后奏战术】！！！
+    # 1. 闭着眼睛暴力强转所有参数
     sed -i 's/p_window,/(Window)(uintptr_t)p_window,/g' $F5
-    sed -i 's/return win;/return (EGLNativeWindowType)(uintptr_t)win;/g' $F5
-    sed -i 's/(s_display, win)/(s_display, (Window)(uintptr_t)win)/g' $F5
-    sed -i 's/s_display, p_sub_window/s_display, (Window)(uintptr_t)p_sub_window/g' $F5
     sed -i 's/p_sub_window,/(Window)(uintptr_t)p_sub_window,/g' $F5
+    sed -i 's/return win;/return (EGLNativeWindowType)(uintptr_t)win;/g' $F5
+    sed -i 's/s_display, win/s_display, (Window)(uintptr_t)win/g' $F5
+    
+    # 2. 精准识别函数签名，用治愈魔法把被误伤的代码原封不动地救回来
+    sed -i 's/FBNativeWindowType (Window)(uintptr_t)p_window,/FBNativeWindowType p_window,/g' $F5
+    sed -i 's/EGLNativeWindowType (Window)(uintptr_t)p_sub_window,/EGLNativeWindowType p_sub_window,/g' $F5
     
     echo "[*] 强行烙印安卓 Vulkan 上帝宏！"
     sed -i '1i add_compile_definitions(VK_USE_PLATFORM_ANDROID_KHR=1)' CMakeLists.txt
