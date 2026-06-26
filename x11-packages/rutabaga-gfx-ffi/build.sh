@@ -17,7 +17,7 @@ termux_step_make() {
     cd $TERMUX_PKG_SRCDIR/repo/ffi
     
     echo "[*] 启动 Cargo 编译，三神装全开！"
-    cargo build --release --target aarch64-linux-android --features="gfxstream,virgl_renderer"
+    cargo build --release --target aarch64-linux-android --features="rutabaga_gfx/virgl_renderer,rutabaga_gfx/gfxstream"
 }
 
 termux_step_make_install() {
