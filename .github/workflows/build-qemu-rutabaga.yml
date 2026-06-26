@@ -23,6 +23,7 @@ jobs:
       - name: Execute Sequential Cross-Compilation
         run: |
           echo "[*] 启动 Docker 交叉编译环境..."
+          export TERMUX_PKG_EXTRA_CONFIGURE_ARGS="-Ddocs=disabled"
           # 严格按依赖顺序，一条指令直接打穿三大模块！
           ./scripts/run-docker.sh ./build-package.sh -a aarch64 -I gfxstream rutabaga-gfx-ffi qemu-system-x86-64
 
