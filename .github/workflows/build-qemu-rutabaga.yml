@@ -39,10 +39,30 @@ jobs:
       - name: Execute Sequential Cross-Compilation
         run: |
           echo "[*] 启动 Docker 交叉编译环境..."
-          export TERMUX_PKG_EXTRA_CONFIGURE_ARGS="-Ddocs=disabled"
-          # 严格按依赖顺序，一条指令直接打穿三大模块！
-          ./scripts/run-docker.sh ./build-package.sh -a aarch64 -I gfxstream rutabaga-gfx-ffi qemu-system-x86-64
-
+          # ！！！【高维拦截：启动 Doxygen 异步猎杀进程】！！！
+          # 注意：这里改用单引号包裹 bash -c 的内容，防止变量被宿主机提前解析
+          ./scripts/run-docker.sh bash -c '
+          echo "[*] 后台猎杀程序已就绪，死盯 doxygen..."
+          
+          ( while true; do
+              DOX="/home/builder/.termux-build/libxml2/host-build/ubuntu_packages/usr/bin/doxygen"
+              # 一旦发现目标，且还没被我们篡改过
+              if [ -f "$DOX" ] && ! grep -q "exit 0" "$DOX"; then
+                  # 物理抹除，注入替身脚本！
+                  echo "#!/bin/sh" > "$DOX"
+                  echo "exit 0" >> "$DOX"
+                  chmod +x "$DOX"
+                  echo "[*] 成功在磁盘级瞬杀 doxygen，伪装完毕！"
+              fi
+              sleep 0.2
+          done ) &
+          
+          # 猎杀程序在后台运行，前台继续执行真正的串行编译
+          ./build-package.sh -a aarch64 -I gfxstream && \
+          ./build-package.sh -a aarch64 -I rutabaga-gfx-ffi && \
+          ./build-package.sh -a aarch64 -I qemu-system-x86-64
+          '
+          
       - name: Sanitize Artifact Filenames
         run: |
           cd output
