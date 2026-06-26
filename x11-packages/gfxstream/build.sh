@@ -7,34 +7,37 @@ TERMUX_PKG_GIT_BRANCH="main"
 TERMUX_PKG_DEPENDS="libc++, libdrm, libx11"
 TERMUX_PKG_BUILD_DEPENDS="libx11"
 
-# ！！！【核心破局：强行提升 NDK 编译基线，解锁现代 Android API】！！！
-# 只有 API 28 才能原生支持 aligned_alloc 和完整的 AHardwareBuffer！
+# 强开 API 28，解锁现代 Android API
 TERMUX_PKG_API_LEVEL=28
-
 TERMUX_PKG_EXTRA_CONFIGURE_ARGS=""
 
-# ！！！【云端重塑：执行物理级强转与依赖清洗】！！！
 termux_step_post_get_source() {
     echo "[*] 启动云端源码重塑，修复 Android NDK 与 X11 的跨界类型冲突..."
     local F1="host/gl/glestranslator/egl/egl_os_api_egl.cpp"
     local F2="host/gl/glestranslator/egl/egl_os_api_glx.cpp"
     local F3="host/vulkan/display_surface_vk.cpp"
     local F4="host/vulkan/vk_decoder_global_state.cpp"
+    local F5="host/native_sub_window_x11.cpp"
     
-    # 精准强转 XGetGeometry 的 Window 参数
+    # OpenGL GLX 冲突清洗
     sed -i 's/mGlxDisplay, win, /mGlxDisplay, (Drawable)(uintptr_t)win, /g' $F1
     sed -i 's/mDisplay, win, /mDisplay, (Drawable)(uintptr_t)win, /g' $F2
-    
-    # 精准强转 isValidNativeWin 和 GlxSurface 的构造入参
     sed -i 's/GlxSurface::drawableFor(win)/(EGLNativeWindowType)(uintptr_t)GlxSurface::drawableFor(win)/g' $F2
     sed -i 's/new GlxSurface(wnd/new GlxSurface((GLXDrawable)(uintptr_t)wnd/g' $F2
     
-    # 强转 Vulkan XCB 的窗口参数
+    # Vulkan XCB 冲突清洗
     sed -i 's/\.window = window,/.window = (xcb_window_t)(uintptr_t)window,/g' $F3
     
-    # ！！！新加的致命一击：将私有 VNDK 头文件强行桥接到公开 NDK 头文件 ！！！
+    # VNDK 私有库依赖清洗
     sed -i 's/<vndk\/hardware_buffer.h>/<android\/hardware_buffer.h>/g' $F4
+
+    # ！！！【最后的清剿：强转原生子窗口的 X11 冲突】！！！
+    sed -i 's/p_window,/(Window)(uintptr_t)p_window,/g' $F5
+    sed -i 's/return win;/return (EGLNativeWindowType)(uintptr_t)win;/g' $F5
+    sed -i 's/(s_display, win)/(s_display, (Window)(uintptr_t)win)/g' $F5
+    sed -i 's/s_display, p_sub_window/s_display, (Window)(uintptr_t)p_sub_window/g' $F5
+    sed -i 's/p_sub_window,/(Window)(uintptr_t)p_sub_window,/g' $F5
     
-    echo "[*] 强行烙印安卓 Vulkan 上帝宏，彻底解锁跨平台结构体屏蔽！"
+    echo "[*] 强行烙印安卓 Vulkan 上帝宏！"
     sed -i '1i add_compile_definitions(VK_USE_PLATFORM_ANDROID_KHR=1)' CMakeLists.txt
 }
