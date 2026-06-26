@@ -17,6 +17,7 @@ termux_step_post_get_source() {
     local F3="host/vulkan/display_surface_vk.cpp"
     local F4="host/vulkan/vk_decoder_global_state.cpp"
     local F5="host/native_sub_window_x11.cpp"
+    local F6="host/testlibs/oswindow/x11/X11Window.cpp"
     
     # OpenGL GLX 冲突清洗
     sed -i 's/mGlxDisplay, win, /mGlxDisplay, (Drawable)(uintptr_t)win, /g' $F1
@@ -30,16 +31,16 @@ termux_step_post_get_source() {
     # VNDK 私有库依赖清洗
     sed -i 's/<vndk\/hardware_buffer.h>/<android\/hardware_buffer.h>/g' $F4
 
-    # ！！！【真正的满血绝杀：先斩后奏战术】！！！
-    # 1. 闭着眼睛暴力强转所有参数
+    # 原生子窗口的 X11 冲突清洗（先斩后奏战术）
     sed -i 's/p_window,/(Window)(uintptr_t)p_window,/g' $F5
     sed -i 's/p_sub_window,/(Window)(uintptr_t)p_sub_window,/g' $F5
     sed -i 's/return win;/return (EGLNativeWindowType)(uintptr_t)win;/g' $F5
     sed -i 's/s_display, win/s_display, (Window)(uintptr_t)win/g' $F5
-    
-    # 2. 精准识别函数签名，用治愈魔法把被误伤的代码原封不动地救回来
     sed -i 's/FBNativeWindowType (Window)(uintptr_t)p_window,/FBNativeWindowType p_window,/g' $F5
     sed -i 's/EGLNativeWindowType (Window)(uintptr_t)p_sub_window,/EGLNativeWindowType p_sub_window,/g' $F5
+    
+    # ！！！【黎明前最后的绝杀：测试组件的返回值强转】！！！
+    sed -i 's/return mWindow;/return (EGLNativeWindowType)(uintptr_t)mWindow;/g' $F6
     
     echo "[*] 强行烙印安卓 Vulkan 上帝宏！"
     sed -i '1i add_compile_definitions(VK_USE_PLATFORM_ANDROID_KHR=1)' CMakeLists.txt
