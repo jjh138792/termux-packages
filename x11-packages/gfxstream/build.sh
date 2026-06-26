@@ -7,21 +7,24 @@ TERMUX_PKG_GIT_BRANCH="main"
 TERMUX_PKG_DEPENDS="libc++, libdrm, libx11"
 TERMUX_PKG_BUILD_DEPENDS="libx11"
 
-# ！！！【核心修正：删除全局 BUILD_SHARED_LIBS=ON，让内部辅助模块安全编译为静态库】！！！
-# 保持 Termux 最纯净的默认 CMake 环境
+# 保持默认，让内部组件安分地编译成静态库
 TERMUX_PKG_EXTRA_CONFIGURE_ARGS=""
 
-# ！！！【真正的云端调教：执行物理级 C++ 指针强转手术】！！！
+# ！！！【真正的云端重塑：执行物理级强转与全局宏注入】！！！
 termux_step_post_get_source() {
     echo "[*] 启动云端源码重塑，修复 Android NDK 与 X11 的跨界类型冲突..."
     local F1="host/gl/glestranslator/egl/egl_os_api_egl.cpp"
     local F2="host/gl/glestranslator/egl/egl_os_api_glx.cpp"
     
-    # 精准强转 XGetGeometry 的 Window 参数，彻底斩断指针与整数的撕裂
+    # 精准强转 XGetGeometry 的 Window 参数
     sed -i 's/mGlxDisplay, win, /mGlxDisplay, (Drawable)(uintptr_t)win, /g' $F1
     sed -i 's/mDisplay, win, /mDisplay, (Drawable)(uintptr_t)win, /g' $F2
     
     # 精准强转 isValidNativeWin 和 GlxSurface 的构造入参
     sed -i 's/GlxSurface::drawableFor(win)/(EGLNativeWindowType)(uintptr_t)GlxSurface::drawableFor(win)/g' $F2
     sed -i 's/new GlxSurface(wnd/new GlxSurface((GLXDrawable)(uintptr_t)wnd/g' $F2
+    
+    echo "[*] 强行烙印安卓 Vulkan 上帝宏，彻底解锁跨平台结构体屏蔽！"
+    # 在 CMake 的第一行强行注入编译期宏定义！
+    sed -i '1i add_compile_definitions(VK_USE_PLATFORM_ANDROID_KHR=1)' CMakeLists.txt
 }
