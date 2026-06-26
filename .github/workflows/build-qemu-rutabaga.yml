@@ -20,6 +20,22 @@ jobs:
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
+      - name: Dynamic Exorcism of Doxygen
+        run: |
+          echo "[*] 启动全盘雷达，猎杀导致崩溃的 libxml2 HTML文档生成器..."
+          
+          # 使用 find 命令进行维度打击，不管 libxml2 藏在哪里，直接锁定！
+          LIBXML2_SCRIPT=$(find . -name "build.sh" | grep "/libxml2/build.sh" | head -n 1)
+          
+          if [ -n "$LIBXML2_SCRIPT" ]; then
+              echo "[*] 成功锁定目标: $LIBXML2_SCRIPT"
+              # 直接在文件末尾物理追加强行关闭文档的 Meson 标志
+              echo 'TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" -Ddocs=disabled "' >> "$LIBXML2_SCRIPT"
+              echo "[*] libxml2 的文档生成已被彻底物理阉割！"
+          else
+              echo "[!] 警告：未找到 libxml2 构建脚本，可能它不在此仓库层级中。"
+          fi
+          
       - name: Execute Sequential Cross-Compilation
         run: |
           echo "[*] 启动 Docker 交叉编译环境..."
