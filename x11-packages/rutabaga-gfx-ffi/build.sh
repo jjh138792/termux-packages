@@ -4,8 +4,8 @@ TERMUX_PKG_LICENSE="BSD"
 TERMUX_PKG_VERSION=0.1.76
 TERMUX_PKG_SKIP_SRC_EXTRACT=true
 
-TERMUX_PKG_DEPENDS="gfxstream, virglrenderer, wayland"
-TERMUX_PKG_BUILD_DEPENDS="gfxstream, virglrenderer, wayland"
+TERMUX_PKG_DEPENDS="gfxstream, virglrenderer"
+TERMUX_PKG_BUILD_DEPENDS="gfxstream, virglrenderer"
 
 termux_step_make() {
     termux_setup_rust
