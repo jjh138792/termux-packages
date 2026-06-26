@@ -45,14 +45,24 @@ termux_step_post_get_source() {
     echo "[*] 强行烙印安卓 Vulkan 上帝宏！"
     sed -i '1i add_compile_definitions(VK_USE_PLATFORM_ANDROID_KHR=1)' CMakeLists.txt
 }
-# ！！！【胜利的收尾：手动接管文件安装与注册】！！！
+# ！！！【胜利的收尾：带全盘雷达的手动安装劫持】！！！
 termux_step_make_install() {
-    echo "[*] 启动手动安装劫持，捕获野生 libgfxstream_backend.so..."
+    echo "[*] 启动手动安装劫持，全盘搜捕野生 libgfxstream_backend.so..."
     
-    # 1. 强行把 CMake 乱放的动态库抓回来，塞进 Termux 的标准系统库目录
-    install -Dm755 distribution/libgfxstream_backend.so $TERMUX_PREFIX/lib/libgfxstream_backend.so
+    # 使用 find 命令进行物理追踪，无视 CMake 的乱放行为！
+    local SO_FILE=$(find . -name "libgfxstream_backend.so" | head -n 1)
     
-    # 2. 伪造 pkg-config 身份证！这是打通 Rust (Rutabaga) 和 C++ (Gfxstream) 的终极桥梁！
+    if [ -z "$SO_FILE" ]; then
+        echo "[!] 致命错误：找不到 libgfxstream_backend.so，前面的编译可能暗中失败了！"
+        exit 1
+    fi
+    
+    echo "[*] 成功捕获目标：$SO_FILE"
+    
+    # 强行塞进 Termux 的标准系统库目录
+    install -Dm755 "$SO_FILE" $TERMUX_PREFIX/lib/libgfxstream_backend.so
+    
+    # 伪造 pkg-config 身份证！这是打通 Rust (Rutabaga) 和 C++ (Gfxstream) 的终极桥梁！
     mkdir -p $TERMUX_PREFIX/lib/pkgconfig
     cat << PC_EOF > $TERMUX_PREFIX/lib/pkgconfig/gfxstream_backend.pc
 Name: gfxstream_backend
