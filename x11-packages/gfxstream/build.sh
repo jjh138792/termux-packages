@@ -4,14 +4,14 @@ TERMUX_PKG_LICENSE="Apache-2.0"
 TERMUX_PKG_VERSION=1.0.0
 TERMUX_PKG_SRCURL="git+https://github.com/google/gfxstream.git"
 TERMUX_PKG_GIT_BRANCH="main"
-# 补上 libx11 依赖，满足 CMake 对桌面环境的强求
 TERMUX_PKG_DEPENDS="libc++, libdrm, libx11"
 TERMUX_PKG_BUILD_DEPENDS="libx11"
 
-# 传递给 CMake 的动态库标准参数
-TERMUX_PKG_EXTRA_CONFIGURE_ARGS="-DBUILD_SHARED_LIBS=ON"
+# ！！！【核心修正：删除全局 BUILD_SHARED_LIBS=ON，让内部辅助模块安全编译为静态库】！！！
+# 保持 Termux 最纯净的默认 CMake 环境
+TERMUX_PKG_EXTRA_CONFIGURE_ARGS=""
 
-# ！！！【真正的调教 Termux：官方云端源码修补钩子】！！！
+# ！！！【真正的云端调教：执行物理级 C++ 指针强转手术】！！！
 termux_step_post_get_source() {
     echo "[*] 启动云端源码重塑，修复 Android NDK 与 X11 的跨界类型冲突..."
     local F1="host/gl/glestranslator/egl/egl_os_api_egl.cpp"
