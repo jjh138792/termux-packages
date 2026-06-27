@@ -44,31 +44,36 @@ jobs:
               sed -i '2i TERMUX_PKG_RM_ALREADY_AUTORECONFED=true' "$UTIL_LINUX_SCRIPT"
               echo "[*] util-linux 时间戳诅咒已被解除，强制使用现代容器重构！"
           fi
-          
       - name: Execute Sequential Cross-Compilation
         run: |
           echo "[*] 启动 Docker 交叉编译环境..."
           ./scripts/run-docker.sh bash -c '
           
-          echo "[*] 正在安装 Autotools 真实全家桶 (防缺漏)..."
+          echo "[*] 安装真实的构建引擎，拒绝一切造假！"
           sudo apt-get update -y
           sudo apt-get install -y automake autoconf libtool pkg-config gettext autopoint bison flex
           
-          echo "[*] 正在锁定并重构 util-linux 构建流程..."
+          echo "[*] 给 util-linux 注入合法的编译前重构命令..."
           UTIL_LINUX_SCRIPT=$(find . -name "build.sh" | grep "/util-linux/build.sh" | head -n 1)
           if [ -n "$UTIL_LINUX_SCRIPT" ]; then
-              # ！！！【核心破局：注入 Termux 原生 Hook，强行洗牌 Autotools 契约】！！！
-              echo "" >> "$UTIL_LINUX_SCRIPT"
-              echo "termux_step_pre_configure() {" >> "$UTIL_LINUX_SCRIPT"
-              echo "    echo \"[*] 触发强行重构 (Autoreconf)...\"" >> "$UTIL_LINUX_SCRIPT"
-              echo "    cd \$TERMUX_PKG_SRCDIR" >> "$UTIL_LINUX_SCRIPT"
-              # 调用官方重生脚本，如果失败则直接执行 autoreconf 暴力重构
-              echo "    NOCONFIGURE=1 ./autogen.sh || autoreconf -fiv" >> "$UTIL_LINUX_SCRIPT"
-              echo "}" >> "$UTIL_LINUX_SCRIPT"
-              echo "[*] util-linux 专属重构 Hook 注入成功！"
+              # 我们不篡改原始逻辑，而是追加一个标准的预处理函数
+              cat << "EOF" >> "$UTIL_LINUX_SCRIPT"
+
+          termux_step_pre_configure() {
+              echo "[*] 正在执行真实的 autoreconf，确保所有 Android 补丁被合法写入！"
+              cd $TERMUX_PKG_SRCDIR
+              # 真实调用系统引擎重构构建蓝图
+              AUTOPOINT=true autoreconf -fiv
+              
+              echo "[*] 蓝图重构完毕！同步时间戳，彻底阻止 make 产生幻觉..."
+              # 这一步极其关键：统一所有文件时间戳，让 make 知道无需再次生成
+              find . -type f -exec touch {} +
+          }
+          EOF
+              echo "[*] 真实重构逻辑注入成功！"
           fi
-          
-          # 之前针对 libxml2 的猎杀程序 (保留，防止那边的弱智 doxygen 再次作妖)
+
+          # 之前的后台猎杀程序 (仅对生成文档的 doxygen 进行屏蔽，绝对不干涉任何核心编译逻辑)
           ( while true; do
               DOX="/home/builder/.termux-build/libxml2/host-build/ubuntu_packages/usr/bin/doxygen"
               if [ -f "$DOX" ] && ! grep -q "exit 0" "$DOX"; then
