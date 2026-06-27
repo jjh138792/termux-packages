@@ -19,11 +19,12 @@ termux_step_make() {
     rm -f $TERMUX_PKG_SRCDIR/repo/rust-toolchain
     rm -f $TERMUX_PKG_SRCDIR/repo/rust-toolchain.toml
     
-    # ！！！【神级欺骗术：批量伪造子模块户口本，满足 Cargo 的强迫症】！！！
-    echo "[*] 批量下发 aemu_base 等子模块的虚假 pkg-config 证明..."
+    # ！！！【神级欺骗术：火力覆盖式批量伪造户口本】！！！
+    echo "[*] 批量下发 aemu 系列子模块的虚假 pkg-config 证明..."
     mkdir -p $TERMUX_PREFIX/lib/pkgconfig
-    # 预防性地把 Rutabaga 可能查岗的子模块全给造出来！
-    for libname in aemu_base aemu_logging gfxstream_host_common; do
+    
+    # 把它可能查的所有依赖全部列上，直接一锅端！
+    for libname in aemu_base aemu_logging aemu_host_common aemu_snapshot gfxstream_host_common; do
         cat << PC_EOF > $TERMUX_PREFIX/lib/pkgconfig/${libname}.pc
 Name: ${libname}
 Description: Fake ${libname} for rutabaga build bypass
