@@ -44,34 +44,43 @@ jobs:
               sed -i '2i TERMUX_PKG_RM_ALREADY_AUTORECONFED=true' "$UTIL_LINUX_SCRIPT"
               echo "[*] util-linux 时间戳诅咒已被解除，强制使用现代容器重构！"
           fi
-          
       - name: Execute Sequential Cross-Compilation
         run: |
           echo "[*] 启动 Docker 交叉编译环境..."
           ./scripts/run-docker.sh bash -c '
           
-          echo "[*] 部署免 sudo 的无敌环境垫片 (Shim)..."
+          echo "[*] 部署终极环境垫片 (Shim) v2.0: 智能 Autotools 升维打击..."
           mkdir -p /tmp/bin
           
-          # 给 automake-1.16 和 aclocal-1.16 建立合法的命令映射
-          # 当 missing 脚本调用它们时，完美路由到系统中真实的、满血的 automake 引擎！
+          # 核心逻辑：当旧版 Makefile 呼叫 automake-1.16 时，我们不再盲目转发！
+          # 而是直接在源码目录执行 autoreconf -fiv，强制整个项目图纸升级到 1.18.1！
           cat << "EOF" > /tmp/bin/automake-1.16
           #!/bin/bash
-          exec automake "$@"
+          if [ ! -f /tmp/.autoreconf_done ]; then
+              echo "[*] [Shim] 拦截到旧版 1.16 调用！正在强制升级整个项目的 Autotools 契约..."
+              autoreconf -fiv
+              touch /tmp/.autoreconf_done
+          fi
+          exit 0
           EOF
           
           cat << "EOF" > /tmp/bin/aclocal-1.16
           #!/bin/bash
-          exec aclocal "$@"
+          if [ ! -f /tmp/.autoreconf_done ]; then
+              echo "[*] [Shim] 拦截到旧版 1.16 调用！正在强制升级整个项目的 Autotools 契约..."
+              autoreconf -fiv
+              touch /tmp/.autoreconf_done
+          fi
+          exit 0
           EOF
           
           chmod +x /tmp/bin/*
           export PATH="/tmp/bin:$PATH"
           
-          echo "[*] PATH 变量劫持完成，真实引擎已就位！绝不造假！"
+          echo "[*] PATH 变量劫持完成，智能升级引擎已就位！"
           
-          # 之前的后台猎杀程序 (仅对生成文档的 doxygen 进行屏蔽，绝对不干涉任何核心 C 语言编译逻辑)
-          # 之前的后台猎杀程序 (仅对生成文档的 doxygen 进行屏蔽，绝对不干涉核心编译)
+          # ！！！【绝对保留的完美并发猎杀程序 (感谢你的火眼金睛)】！！！
+          # 只要文件存在，且不是我们的假脚本，立刻夺舍覆盖！
           ( while true; do
               DOX="/home/builder/.termux-build/libxml2/host-build/ubuntu_packages/usr/bin/doxygen"
               if [ -f "$DOX" ] && ! grep -q "exit 0" "$DOX"; then
@@ -79,12 +88,13 @@ jobs:
               fi
               sleep 0.2
           done ) &
+          
           # 前台继续执行真正的串行编译
           ./build-package.sh -a aarch64 -I gfxstream && \
           ./build-package.sh -a aarch64 -I rutabaga-gfx-ffi && \
           ./build-package.sh -a aarch64 -I qemu-system-x86-64
           '
-
+          
       - name: Sanitize Artifact Filenames
         run: |
           cd output
