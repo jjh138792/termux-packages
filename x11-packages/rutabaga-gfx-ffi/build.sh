@@ -1,6 +1,8 @@
 TERMUX_PKG_HOMEPAGE=https://github.com/magma-gpu/rutabaga_gfx
 TERMUX_PKG_DESCRIPTION="Rutabaga GFX FFI (Trinity Edition)"
 TERMUX_PKG_LICENSE="BSD"
+# ！！！【就加了这一行：给打包系统指明 License 文件的位置】！！！
+TERMUX_PKG_LICENSE_FILE="repo/LICENSE"
 TERMUX_PKG_VERSION=0.1.76
 TERMUX_PKG_SKIP_SRC_EXTRACT=true
 
@@ -31,7 +33,7 @@ Cflags: -I${TERMUX_PREFIX}/include
 PC_EOF
     done
 
-    echo "[*] 启动神级 Polyfill 注入：运行时动态解构 AHardwareBuffer..."
+    echo "[*] 启动神级 Polyfill 注入：通过 NDK 合规链接 AHardwareBuffer..."
     GFXSTREAM_RS=$(find $TERMUX_PKG_SRCDIR/repo -name "gfxstream.rs" | head -n 1)
     
     if [ -n "$GFXSTREAM_RS" ]; then
@@ -49,6 +51,14 @@ pub mod nativewindow {
         pub version: libc::c_int,
         pub numFds: libc::c_int,
         pub numInts: libc::c_int,
+    }
+
+    #[link(name = "android")]
+    #[link(name = "nativewindow")]
+    extern "C" {
+        pub fn AHardwareBuffer_getNativeHandle(
+            buffer: *mut std::ffi::c_void,
+        ) -> *const native_handle_t;
     }
 
     pub struct MockFd(pub RawFd);
@@ -75,20 +85,9 @@ pub mod nativewindow {
         type Error = &'static str;
         fn try_into(self) -> Result<AhbInfo, Self::Error> {
             unsafe {
-                let handle = libc::dlopen(b"libnativewindow.so\0".as_ptr() as *const libc::c_char, libc::RTLD_NOW);
-                if handle.is_null() { return Err("Failed to dlopen libnativewindow.so"); }
-                
-                let sym = libc::dlsym(handle, b"AHardwareBuffer_getNativeHandle\0".as_ptr() as *const libc::c_char);
-                if sym.is_null() {
-                    libc::dlclose(handle);
-                    return Err("Failed to dlsym AHardwareBuffer_getNativeHandle");
-                }
-                
-                let get_native_handle: extern "C" fn(*mut std::ffi::c_void) -> *const native_handle_t = std::mem::transmute(sym);
-                let native_handle = get_native_handle(self.ptr);
+                let native_handle = AHardwareBuffer_getNativeHandle(self.ptr);
                 
                 if native_handle.is_null() {
-                    libc::dlclose(handle);
                     return Err("Native handle returned null");
                 }
                 
@@ -111,7 +110,6 @@ pub mod nativewindow {
                     data.extend_from_slice(&int_val.to_ne_bytes());
                 }
                 
-                libc::dlclose(handle);
                 Ok(AhbInfo { fds, data })
             }
         }
@@ -123,7 +121,7 @@ use nativewindow::AhbInfo as NativeAhbInfo;
 use nativewindow::HardwareBuffer;
 
 EOF
-        echo "[*] AHardwareBuffer 动态解构封装层追加完毕！"
+        echo "[*] AHardwareBuffer (AHB) 封装层追加完毕，合规且满血！"
     fi
 
     cd $TERMUX_PKG_SRCDIR/repo/ffi
@@ -135,7 +133,6 @@ EOF
 termux_step_make_install() {
     cd $TERMUX_PKG_SRCDIR/repo/ffi
     
-    # ！！！【终极路径修正：向上一级去 Workspace 的 target 捞取战利品】！！！
     install -Dm755 ../target/${CARGO_TARGET_NAME}/release/librutabaga_gfx_ffi.so $TERMUX_PREFIX/lib/librutabaga_gfx_ffi.so
     install -Dm644 src/include/rutabaga_gfx_ffi.h $TERMUX_PREFIX/include/rutabaga_gfx/rutabaga_gfx_ffi.h
     
