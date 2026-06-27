@@ -46,38 +46,20 @@ jobs:
           fi
       - name: Pre-Docker Matrix Hacking (Host Side Injection)
         run: |
-          echo "[*] 降维打击：在宿主机 (Host) 层面直接修改源码，彻底绕过 Docker 权限隔离墙！"
+          echo "[*] 降维打击：在宿主机 (Host) 层面直接修改源码，解决 Bash 的 C23 纪元灾变！"
           
-          # 1. 解决 util-linux 的 Autotools 时间戳/版本诅咒
-          UTIL_LINUX_SCRIPT="packages/util-linux/build.sh"
-          if [ -f "$UTIL_LINUX_SCRIPT" ]; then
-              # 安全包裹原有的 post_patch 钩子
-              cat << "EOF" >> "$UTIL_LINUX_SCRIPT"
-
-          declare -f termux_step_post_patch >/dev/null && eval "$(echo "orig_termux_step_post_patch()"; declare -f termux_step_post_patch | tail -n +2)"
-          termux_step_post_patch() {
-              if declare -f orig_termux_step_post_patch >/dev/null; then orig_termux_step_post_patch; fi
-              echo "[*] 正在执行真实的 autoreconf，彻底消除 automake-1.16 的版本诅咒..."
-              cd $TERMUX_PKG_SRCDIR
-              NOCONFIGURE=1 ./autogen.sh || autoreconf -fiv
-              find . -type f -name "Makefile.in" -exec touch {} +
-              touch configure
-          }
-          EOF
-              echo "[*] util-linux 真实重构 Hook 注入成功！"
-          fi
-
-          # 2. ！！！【新增：解决 bash 的 C23 bool 关键字冲突】！！！
+          # 针对 Bash 的 bool 关键字冲突，提前打入降级补丁！
           BASH_SCRIPT="packages/bash/build.sh"
           if [ -f "$BASH_SCRIPT" ]; then
-              # 安全包裹 pre_configure 钩子，绝不破坏 bash 原有的配置逻辑
               cat << "EOF" >> "$BASH_SCRIPT"
 
+          # 追加 pre_configure 钩子
           declare -f termux_step_pre_configure >/dev/null && eval "$(echo "orig_bash_pre_configure()"; declare -f termux_step_pre_configure | tail -n +2)"
           termux_step_pre_configure() {
-              echo "[*] 强制编译器退回 C17 时代，规避 C23 bool 关键字冲突！"
-              # 给宿主机工具链 (mkbuiltins) 和目标机工具链同时降级
+              echo "[*] 强制 Bash 编译器退回 C17 时代，规避 C23 bool 关键字冲突！"
+              # 降级目标机编译器 (aarch64 clang)
               export CFLAGS="$CFLAGS -std=gnu17"
+              # 降级宿主机生成工具编译器 (gcc)
               export CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD -std=gnu17"
               export CC_FOR_BUILD="gcc -std=gnu17"
               
@@ -86,14 +68,42 @@ jobs:
           EOF
               echo "[*] bash C17 降级 Hook 注入成功！"
           fi
-          
+
       - name: Execute Sequential Cross-Compilation
         run: |
           echo "[*] 启动 Docker 交叉编译环境..."
           ./scripts/run-docker.sh bash -c '
           
-          echo "[*] 启动神级并发猎杀程序守护进程..."
-          # 保留你无敌的并发猎杀程序 (在容器内绝对有效，因为这是 builder 自己的目录)
+          echo "[*] 部署终极环境垫片 (Shim) v2.0: 智能 Autotools 升维打击..."
+          mkdir -p /tmp/bin
+          
+          # ！！！【原封不动保留你的神级 Shim 逻辑，就是它干碎了 util-linux】！！！
+          cat << "EOF" > /tmp/bin/automake-1.16
+          #!/bin/bash
+          if [ ! -f /tmp/.autoreconf_done ]; then
+              echo "[*] [Shim] 拦截到旧版 1.16 调用！正在强制升级整个项目的 Autotools 契约..."
+              autoreconf -fiv
+              touch /tmp/.autoreconf_done
+          fi
+          exit 0
+          EOF
+          
+          cat << "EOF" > /tmp/bin/aclocal-1.16
+          #!/bin/bash
+          if [ ! -f /tmp/.autoreconf_done ]; then
+              echo "[*] [Shim] 拦截到旧版 1.16 调用！正在强制升级整个项目的 Autotools 契约..."
+              autoreconf -fiv
+              touch /tmp/.autoreconf_done
+          fi
+          exit 0
+          EOF
+          
+          chmod +x /tmp/bin/*
+          export PATH="/tmp/bin:$PATH"
+          
+          echo "[*] PATH 变量劫持完成，智能升级引擎已就位！"
+          
+          # ！！！【原封不动保留你火眼金睛修正过的完美并发猎杀程序】！！！
           ( while true; do
               DOX="/home/builder/.termux-build/libxml2/host-build/ubuntu_packages/usr/bin/doxygen"
               if [ -f "$DOX" ] && ! grep -q "exit 0" "$DOX"; then
