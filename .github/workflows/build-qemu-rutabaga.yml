@@ -71,15 +71,14 @@ jobs:
           echo "[*] PATH 变量劫持完成，真实引擎已就位！绝不造假！"
           
           # 之前的后台猎杀程序 (仅对生成文档的 doxygen 进行屏蔽，绝对不干涉任何核心 C 语言编译逻辑)
-          # 因为 DOX 文件是在编译期间创建在容器里的，所以 builder 有权限写入，这招不受宿主机权限影响。
+          # 之前的后台猎杀程序 (仅对生成文档的 doxygen 进行屏蔽，绝对不干涉核心编译)
           ( while true; do
               DOX="/home/builder/.termux-build/libxml2/host-build/ubuntu_packages/usr/bin/doxygen"
-              if [ -d "$(dirname "$DOX")" ] && [ ! -f "$DOX" ]; then
+              if [ -f "$DOX" ] && ! grep -q "exit 0" "$DOX"; then
                   echo "#!/bin/sh" > "$DOX" && echo "exit 0" >> "$DOX" && chmod +x "$DOX"
               fi
-              sleep 0.01
+              sleep 0.2
           done ) &
-          
           # 前台继续执行真正的串行编译
           ./build-package.sh -a aarch64 -I gfxstream && \
           ./build-package.sh -a aarch64 -I rutabaga-gfx-ffi && \
