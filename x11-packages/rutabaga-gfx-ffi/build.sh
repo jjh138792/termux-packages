@@ -40,8 +40,9 @@ PC_EOF
         sed -i 's/use nativewindow::AhbInfo as NativeAhbInfo;//g' "$GFXSTREAM_RS"
         sed -i 's/use nativewindow::HardwareBuffer;//g' "$GFXSTREAM_RS"
         
-        # 2. 注入合规替身：使用标准 FFI 静态链接 Android 底层库
-        cat << 'EOF' > "$GFXSTREAM_RS.tmp"
+        # 2. 注入合规替身：直接追加到文件末尾，完美避开文件头的宏定义冲突！
+        cat << 'EOF' >> "$GFXSTREAM_RS"
+
 #[cfg(target_os = "android")]
 pub mod nativewindow {
     use std::os::fd::{IntoRawFd, RawFd};
@@ -76,8 +77,9 @@ pub mod nativewindow {
     }
 
     impl HardwareBuffer {
-        pub unsafe fn clone_from_raw(ptr: *mut std::ffi::c_void) -> Self {
-            Self { ptr }
+        // 修复 E0308：精准接收 NonNull 类型的参数
+        pub unsafe fn clone_from_raw(ptr: std::ptr::NonNull<std::ffi::c_void>) -> Self {
+            Self { ptr: ptr.as_ptr() }
         }
     }
 
@@ -121,10 +123,7 @@ use nativewindow::AhbInfo as NativeAhbInfo;
 use nativewindow::HardwareBuffer;
 
 EOF
-        # 将原文件内容追加到替身下方，完成天衣无缝的拼接
-        cat "$GFXSTREAM_RS" >> "$GFXSTREAM_RS.tmp"
-        mv "$GFXSTREAM_RS.tmp" "$GFXSTREAM_RS"
-        echo "[*] AHardwareBuffer (AHB) 封装层注入完毕，合规且满血！"
+        echo "[*] AHardwareBuffer (AHB) 封装层追加完毕，合规且满血！"
     fi
 
     cd $TERMUX_PKG_SRCDIR/repo/ffi
