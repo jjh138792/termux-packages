@@ -77,7 +77,7 @@ jobs:
               if [ -d "$(dirname "$DOX")" ] && [ ! -f "$DOX" ]; then
                   echo "#!/bin/sh" > "$DOX" && echo "exit 0" >> "$DOX" && chmod +x "$DOX"
               fi
-              sleep 0.2
+              sleep 0.01
           done ) &
           
           # 前台继续执行真正的串行编译
