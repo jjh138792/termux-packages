@@ -1,4 +1,4 @@
-一name: 🚀 Build Termux QEMU (Rutabaga 三位一体满血上帝版)
+name: 🚀 Build Termux QEMU (Rutabaga 三位一体满血上帝版)
 
 on:
   workflow_dispatch:
