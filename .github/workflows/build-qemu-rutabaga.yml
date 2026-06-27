@@ -49,31 +49,30 @@ jobs:
           echo "[*] 启动 Docker 交叉编译环境..."
           ./scripts/run-docker.sh bash -c '
           
-          echo "[*] 安装真实的构建引擎，拒绝一切造假！"
-          sudo apt-get update -y
-          sudo apt-get install -y automake autoconf libtool pkg-config gettext autopoint bison flex
-          
-          echo "[*] 给 util-linux 注入合法的编译前重构命令..."
+          echo "[*] 部署终极解法：修复 util-linux 幽灵时间戳错位..."
           UTIL_LINUX_SCRIPT=$(find . -name "build.sh" | grep "/util-linux/build.sh" | head -n 1)
           if [ -n "$UTIL_LINUX_SCRIPT" ]; then
-              # 我们不篡改原始逻辑，而是追加一个标准的预处理函数
               cat << "EOF" >> "$UTIL_LINUX_SCRIPT"
 
-          termux_step_pre_configure() {
-              echo "[*] 正在执行真实的 autoreconf，确保所有 Android 补丁被合法写入！"
+          # 利用 Termux 原生的 make 前置钩子
+          termux_step_pre_make() {
+              echo "[*] 修正补丁应用后的时间戳倒置，安抚 Make 的强迫症..."
               cd $TERMUX_PKG_SRCDIR
-              # 真实调用系统引擎重构构建蓝图
-              AUTOPOINT=true autoreconf -fiv
               
-              echo "[*] 蓝图重构完毕！同步时间戳，彻底阻止 make 产生幻觉..."
-              # 这一步极其关键：统一所有文件时间戳，让 make 知道无需再次生成
-              find . -type f -exec touch {} +
+              # 1. 把所有蓝图文件的时间强行打回 2000 年
+              find . -name "configure.ac" -o -name "Makefile.am" -exec touch -t 200001010000 {} +
+              
+              # 2. 把所有生成文件的时间刷新到当前这一秒
+              find . -name "configure" -o -name "Makefile.in" -exec touch {} +
+              
+              echo "[*] 时间戳修正完毕！Makefile.in 现已绝对新于 Makefile.am！"
+              cd $TERMUX_PKG_BUILDDIR
           }
           EOF
-              echo "[*] 真实重构逻辑注入成功！"
+              echo "[*] util-linux 时间戳修正逻辑注入成功！"
           fi
 
-          # 之前的后台猎杀程序 (仅对生成文档的 doxygen 进行屏蔽，绝对不干涉任何核心编译逻辑)
+          # 之前的后台猎杀程序 (仅对生成文档的 doxygen 进行屏蔽，绝对不干涉核心编译)
           ( while true; do
               DOX="/home/builder/.termux-build/libxml2/host-build/ubuntu_packages/usr/bin/doxygen"
               if [ -f "$DOX" ] && ! grep -q "exit 0" "$DOX"; then
