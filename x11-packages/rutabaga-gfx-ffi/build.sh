@@ -31,8 +31,8 @@ Cflags: -I${TERMUX_PREFIX}/include
 PC_EOF
     done
 
-    # ！！！【终极心肺复苏：以标准合规 FFI 补全 AHardwareBuffer 底层封装】！！！
-    echo "[*] 启动神级 Polyfill 注入：通过 NDK 合规链接 AHardwareBuffer..."
+    # ！！！【终极心肺复苏：以 dlopen 动态劫持突破 VNDK 禁区，死保 AHardwareBuffer】！！！
+    echo "[*] 启动神级 Polyfill 注入：运行时动态解构 AHardwareBuffer..."
     GFXSTREAM_RS=$(find $TERMUX_PKG_SRCDIR/repo -name "gfxstream.rs" | head -n 1)
     
     if [ -n "$GFXSTREAM_RS" ]; then
@@ -40,7 +40,7 @@ PC_EOF
         sed -i 's/use nativewindow::AhbInfo as NativeAhbInfo;//g' "$GFXSTREAM_RS"
         sed -i 's/use nativewindow::HardwareBuffer;//g' "$GFXSTREAM_RS"
         
-        # 2. 注入合规替身：直接追加到文件末尾，完美避开文件头的宏定义冲突！
+        # 2. 注入动态劫持替身：直接追加到文件末尾，避开宏冲突
         cat << 'EOF' >> "$GFXSTREAM_RS"
 
 #[cfg(target_os = "android")]
@@ -52,14 +52,6 @@ pub mod nativewindow {
         pub version: libc::c_int,
         pub numFds: libc::c_int,
         pub numInts: libc::c_int,
-    }
-
-    #[link(name = "android")]
-    #[link(name = "nativewindow")]
-    extern "C" {
-        pub fn AHardwareBuffer_getNativeHandle(
-            buffer: *mut std::ffi::c_void,
-        ) -> *const native_handle_t;
     }
 
     pub struct MockFd(pub RawFd);
@@ -77,7 +69,6 @@ pub mod nativewindow {
     }
 
     impl HardwareBuffer {
-        // 修复 E0308：精准接收 NonNull 类型的参数
         pub unsafe fn clone_from_raw(ptr: std::ptr::NonNull<std::ffi::c_void>) -> Self {
             Self { ptr: ptr.as_ptr() }
         }
@@ -87,9 +78,21 @@ pub mod nativewindow {
         type Error = &'static str;
         fn try_into(self) -> Result<AhbInfo, Self::Error> {
             unsafe {
-                let native_handle = AHardwareBuffer_getNativeHandle(self.ptr);
+                // 运行时暴力拉起系统库，无视编译期 NDK 隔离！
+                let handle = libc::dlopen(b"libnativewindow.so\0".as_ptr() as *const libc::c_char, libc::RTLD_NOW);
+                if handle.is_null() { return Err("Failed to dlopen libnativewindow.so"); }
+                
+                let sym = libc::dlsym(handle, b"AHardwareBuffer_getNativeHandle\0".as_ptr() as *const libc::c_char);
+                if sym.is_null() {
+                    libc::dlclose(handle);
+                    return Err("Failed to dlsym AHardwareBuffer_getNativeHandle");
+                }
+                
+                let get_native_handle: extern "C" fn(*mut std::ffi::c_void) -> *const native_handle_t = std::mem::transmute(sym);
+                let native_handle = get_native_handle(self.ptr);
                 
                 if native_handle.is_null() {
+                    libc::dlclose(handle);
                     return Err("Native handle returned null");
                 }
                 
@@ -112,6 +115,7 @@ pub mod nativewindow {
                     data.extend_from_slice(&int_val.to_ne_bytes());
                 }
                 
+                libc::dlclose(handle);
                 Ok(AhbInfo { fds, data })
             }
         }
@@ -123,7 +127,7 @@ use nativewindow::AhbInfo as NativeAhbInfo;
 use nativewindow::HardwareBuffer;
 
 EOF
-        echo "[*] AHardwareBuffer (AHB) 封装层追加完毕，合规且满血！"
+        echo "[*] AHardwareBuffer 动态解构封装层追加完毕！"
     fi
 
     cd $TERMUX_PKG_SRCDIR/repo/ffi
