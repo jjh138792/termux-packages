@@ -52,6 +52,17 @@ jobs:
           # 注意：这里改用单引号包裹 bash -c 的内容，防止变量被宿主机提前解析
           ./scripts/run-docker.sh bash -c '
           echo "[*] 后台猎杀程序已就绪，死盯 doxygen..."
+          echo "[*] 部署真实的 Autotools 链，确保 Android 补丁完美融入源码！"
+          
+          # 1. 强制安装真实的构建工具链 (防止容器环境精简掉这些依赖)
+          sudo apt-get update -y
+          sudo apt-get install -y automake autoconf libtool
+          
+          # 2. 建立真实的系统级软链接，将无后缀命令映射给 util-linux 的强迫症检查
+          sudo ln -sf /usr/bin/automake /usr/bin/automake-1.16
+          sudo ln -sf /usr/bin/aclocal /usr/bin/aclocal-1.16
+          
+          echo "[*] 真实构建引擎对接完毕！拒绝造假，硬核重构！"
           
           ( while true; do
               DOX="/home/builder/.termux-build/libxml2/host-build/ubuntu_packages/usr/bin/doxygen"
