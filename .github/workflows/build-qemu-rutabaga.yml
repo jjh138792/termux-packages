@@ -44,38 +44,37 @@ jobs:
               sed -i '2i TERMUX_PKG_RM_ALREADY_AUTORECONFED=true' "$UTIL_LINUX_SCRIPT"
               echo "[*] util-linux 时间戳诅咒已被解除，强制使用现代容器重构！"
           fi
+          
       - name: Execute Sequential Cross-Compilation
         run: |
           echo "[*] 启动 Docker 交叉编译环境..."
           ./scripts/run-docker.sh bash -c '
           
-          echo "[*] 部署终极解法：修复 util-linux 幽灵时间戳错位..."
-          UTIL_LINUX_SCRIPT=$(find . -name "build.sh" | grep "/util-linux/build.sh" | head -n 1)
-          if [ -n "$UTIL_LINUX_SCRIPT" ]; then
-              cat << "EOF" >> "$UTIL_LINUX_SCRIPT"
-
-          # 利用 Termux 原生的 make 前置钩子
-          termux_step_pre_make() {
-              echo "[*] 修正补丁应用后的时间戳倒置，安抚 Make 的强迫症..."
-              cd $TERMUX_PKG_SRCDIR
-              
-              # 1. 把所有蓝图文件的时间强行打回 2000 年
-              find . -name "configure.ac" -o -name "Makefile.am" -exec touch -t 200001010000 {} +
-              
-              # 2. 把所有生成文件的时间刷新到当前这一秒
-              find . -name "configure" -o -name "Makefile.in" -exec touch {} +
-              
-              echo "[*] 时间戳修正完毕！Makefile.in 现已绝对新于 Makefile.am！"
-              cd $TERMUX_PKG_BUILDDIR
-          }
+          echo "[*] 部署免 sudo 的无敌环境垫片 (Shim)..."
+          mkdir -p /tmp/bin
+          
+          # 给 automake-1.16 和 aclocal-1.16 建立合法的命令映射
+          # 当 missing 脚本调用它们时，完美路由到系统中真实的、满血的 automake 引擎！
+          cat << "EOF" > /tmp/bin/automake-1.16
+          #!/bin/bash
+          exec automake "$@"
           EOF
-              echo "[*] util-linux 时间戳修正逻辑注入成功！"
-          fi
-
-          # 之前的后台猎杀程序 (仅对生成文档的 doxygen 进行屏蔽，绝对不干涉核心编译)
+          
+          cat << "EOF" > /tmp/bin/aclocal-1.16
+          #!/bin/bash
+          exec aclocal "$@"
+          EOF
+          
+          chmod +x /tmp/bin/*
+          export PATH="/tmp/bin:$PATH"
+          
+          echo "[*] PATH 变量劫持完成，真实引擎已就位！绝不造假！"
+          
+          # 之前的后台猎杀程序 (仅对生成文档的 doxygen 进行屏蔽，绝对不干涉任何核心 C 语言编译逻辑)
+          # 因为 DOX 文件是在编译期间创建在容器里的，所以 builder 有权限写入，这招不受宿主机权限影响。
           ( while true; do
               DOX="/home/builder/.termux-build/libxml2/host-build/ubuntu_packages/usr/bin/doxygen"
-              if [ -f "$DOX" ] && ! grep -q "exit 0" "$DOX"; then
+              if [ -d "$(dirname "$DOX")" ] && [ ! -f "$DOX" ]; then
                   echo "#!/bin/sh" > "$DOX" && echo "exit 0" >> "$DOX" && chmod +x "$DOX"
               fi
               sleep 0.2
