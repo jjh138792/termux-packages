@@ -48,41 +48,41 @@ jobs:
       - name: Execute Sequential Cross-Compilation
         run: |
           echo "[*] 启动 Docker 交叉编译环境..."
-          # ！！！【高维拦截：启动 Doxygen 异步猎杀进程】！！！
-          # 注意：这里改用单引号包裹 bash -c 的内容，防止变量被宿主机提前解析
           ./scripts/run-docker.sh bash -c '
-          echo "[*] 后台猎杀程序已就绪，死盯 doxygen..."
-          echo "[*] 部署真实的 Autotools 链，确保 Android 补丁完美融入源码！"
           
-          # 1. 强制安装真实的构建工具链 (防止容器环境精简掉这些依赖)
+          echo "[*] 正在安装 Autotools 真实全家桶 (防缺漏)..."
           sudo apt-get update -y
-          sudo apt-get install -y automake autoconf libtool
+          sudo apt-get install -y automake autoconf libtool pkg-config gettext autopoint bison flex
           
-          # 2. 建立真实的系统级软链接，将无后缀命令映射给 util-linux 的强迫症检查
-          sudo ln -sf /usr/bin/automake /usr/bin/automake-1.16
-          sudo ln -sf /usr/bin/aclocal /usr/bin/aclocal-1.16
+          echo "[*] 正在锁定并重构 util-linux 构建流程..."
+          UTIL_LINUX_SCRIPT=$(find . -name "build.sh" | grep "/util-linux/build.sh" | head -n 1)
+          if [ -n "$UTIL_LINUX_SCRIPT" ]; then
+              # ！！！【核心破局：注入 Termux 原生 Hook，强行洗牌 Autotools 契约】！！！
+              echo "" >> "$UTIL_LINUX_SCRIPT"
+              echo "termux_step_pre_configure() {" >> "$UTIL_LINUX_SCRIPT"
+              echo "    echo \"[*] 触发强行重构 (Autoreconf)...\"" >> "$UTIL_LINUX_SCRIPT"
+              echo "    cd \$TERMUX_PKG_SRCDIR" >> "$UTIL_LINUX_SCRIPT"
+              # 调用官方重生脚本，如果失败则直接执行 autoreconf 暴力重构
+              echo "    NOCONFIGURE=1 ./autogen.sh || autoreconf -fiv" >> "$UTIL_LINUX_SCRIPT"
+              echo "}" >> "$UTIL_LINUX_SCRIPT"
+              echo "[*] util-linux 专属重构 Hook 注入成功！"
+          fi
           
-          echo "[*] 真实构建引擎对接完毕！拒绝造假，硬核重构！"
-          
+          # 之前针对 libxml2 的猎杀程序 (保留，防止那边的弱智 doxygen 再次作妖)
           ( while true; do
               DOX="/home/builder/.termux-build/libxml2/host-build/ubuntu_packages/usr/bin/doxygen"
-              # 一旦发现目标，且还没被我们篡改过
               if [ -f "$DOX" ] && ! grep -q "exit 0" "$DOX"; then
-                  # 物理抹除，注入替身脚本！
-                  echo "#!/bin/sh" > "$DOX"
-                  echo "exit 0" >> "$DOX"
-                  chmod +x "$DOX"
-                  echo "[*] 成功在磁盘级瞬杀 doxygen，伪装完毕！"
+                  echo "#!/bin/sh" > "$DOX" && echo "exit 0" >> "$DOX" && chmod +x "$DOX"
               fi
               sleep 0.2
           done ) &
           
-          # 猎杀程序在后台运行，前台继续执行真正的串行编译
+          # 前台继续执行真正的串行编译
           ./build-package.sh -a aarch64 -I gfxstream && \
           ./build-package.sh -a aarch64 -I rutabaga-gfx-ffi && \
           ./build-package.sh -a aarch64 -I qemu-system-x86-64
           '
-          
+
       - name: Sanitize Artifact Filenames
         run: |
           cd output
