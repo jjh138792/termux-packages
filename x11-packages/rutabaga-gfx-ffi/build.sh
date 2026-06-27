@@ -31,16 +31,13 @@ Cflags: -I${TERMUX_PREFIX}/include
 PC_EOF
     done
 
-    # ！！！【终极心肺复苏：以 dlopen 动态劫持突破 VNDK 禁区，死保 AHardwareBuffer】！！！
     echo "[*] 启动神级 Polyfill 注入：运行时动态解构 AHardwareBuffer..."
     GFXSTREAM_RS=$(find $TERMUX_PKG_SRCDIR/repo -name "gfxstream.rs" | head -n 1)
     
     if [ -n "$GFXSTREAM_RS" ]; then
-        # 1. 抹除导致报错的残废 import
         sed -i 's/use nativewindow::AhbInfo as NativeAhbInfo;//g' "$GFXSTREAM_RS"
         sed -i 's/use nativewindow::HardwareBuffer;//g' "$GFXSTREAM_RS"
         
-        # 2. 注入动态劫持替身：直接追加到文件末尾，避开宏冲突
         cat << 'EOF' >> "$GFXSTREAM_RS"
 
 #[cfg(target_os = "android")]
@@ -78,7 +75,6 @@ pub mod nativewindow {
         type Error = &'static str;
         fn try_into(self) -> Result<AhbInfo, Self::Error> {
             unsafe {
-                // 运行时暴力拉起系统库，无视编译期 NDK 隔离！
                 let handle = libc::dlopen(b"libnativewindow.so\0".as_ptr() as *const libc::c_char, libc::RTLD_NOW);
                 if handle.is_null() { return Err("Failed to dlopen libnativewindow.so"); }
                 
@@ -139,7 +135,8 @@ EOF
 termux_step_make_install() {
     cd $TERMUX_PKG_SRCDIR/repo/ffi
     
-    install -Dm755 target/${CARGO_TARGET_NAME}/release/librutabaga_gfx_ffi.so $TERMUX_PREFIX/lib/librutabaga_gfx_ffi.so
+    # ！！！【终极路径修正：向上一级去 Workspace 的 target 捞取战利品】！！！
+    install -Dm755 ../target/${CARGO_TARGET_NAME}/release/librutabaga_gfx_ffi.so $TERMUX_PREFIX/lib/librutabaga_gfx_ffi.so
     install -Dm644 src/include/rutabaga_gfx_ffi.h $TERMUX_PREFIX/include/rutabaga_gfx/rutabaga_gfx_ffi.h
     
     mkdir -p $TERMUX_PREFIX/lib/pkgconfig
