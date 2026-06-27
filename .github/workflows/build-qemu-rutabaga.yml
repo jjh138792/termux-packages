@@ -1,4 +1,4 @@
-name: 🚀 Build Termux QEMU (Rutabaga 三位一体满血上帝版)
+一name: 🚀 Build Termux QEMU (Rutabaga 三位一体满血上帝版)
 
 on:
   workflow_dispatch:
@@ -34,6 +34,15 @@ jobs:
               echo "[*] libxml2 的文档生成已被彻底物理阉割！"
           else
               echo "[!] 警告：未找到 libxml2 构建脚本，可能它不在此仓库层级中。"
+          fi
+
+                   # ！！！【新增：强制清除 util-linux 的旧世代 Autotools 契约】！！！
+          UTIL_LINUX_SCRIPT=$(find . -name "build.sh" | grep "/util-linux/build.sh" | head -n 1)
+          if [ -n "$UTIL_LINUX_SCRIPT" ]; then
+              echo "[*] 锁定 util-linux: $UTIL_LINUX_SCRIPT"
+              # 在第二行（紧跟 header 后）强行注入尚方宝剑变量
+              sed -i '2i TERMUX_PKG_RM_ALREADY_AUTORECONFED=true' "$UTIL_LINUX_SCRIPT"
+              echo "[*] util-linux 时间戳诅咒已被解除，强制使用现代容器重构！"
           fi
           
       - name: Execute Sequential Cross-Compilation
