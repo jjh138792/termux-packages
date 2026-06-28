@@ -46,9 +46,9 @@ jobs:
           fi
       - name: Pre-Docker Matrix Hacking (Host Side Injection)
         run: |
-          echo "[*] 降维打击：在宿主机 (Host) 层面直接修改源码，解决 Bash 的 C23 纪元灾变！"
+          echo "[*] 降维打击：在宿主机 (Host) 层面直接解决 Bash 的 C23 纪元大灾变！"
           
-          # 针对 Bash 的 bool 关键字冲突，提前打入降级补丁！
+          # 针对 Bash 的 bool 关键字冲突，提前打入 C17 降级补丁！
           BASH_SCRIPT="packages/bash/build.sh"
           if [ -f "$BASH_SCRIPT" ]; then
               cat << "EOF" >> "$BASH_SCRIPT"
@@ -57,16 +57,16 @@ jobs:
           declare -f termux_step_pre_configure >/dev/null && eval "$(echo "orig_bash_pre_configure()"; declare -f termux_step_pre_configure | tail -n +2)"
           termux_step_pre_configure() {
               echo "[*] 强制 Bash 编译器退回 C17 时代，规避 C23 bool 关键字冲突！"
-              # 降级目标机编译器 (aarch64 clang)
-              export CFLAGS="$CFLAGS -std=gnu17"
-              # 降级宿主机生成工具编译器 (gcc)
-              export CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD -std=gnu17"
-              export CC_FOR_BUILD="gcc -std=gnu17"
+              
+              # ！！！【核心修复：使用 ${VAR:-} 防御 set -u 严格模式报错】！！！
+              export CFLAGS="${CFLAGS:-} -std=gnu17"
+              export CFLAGS_FOR_BUILD="${CFLAGS_FOR_BUILD:-} -std=gnu17"
+              export CC_FOR_BUILD="${CC_FOR_BUILD:-gcc} -std=gnu17"
               
               if declare -f orig_bash_pre_configure >/dev/null; then orig_bash_pre_configure; fi
           }
           EOF
-              echo "[*] bash C17 降级 Hook 注入成功！"
+              echo "[*] bash C17 降级 Hook 注入成功 (已开启严格模式防御)！"
           fi
 
       - name: Execute Sequential Cross-Compilation
