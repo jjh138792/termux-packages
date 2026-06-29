@@ -9,7 +9,6 @@ TERMUX_PKG_BUILD_DEPENDS="libx11"
 
 TERMUX_PKG_API_LEVEL=28
 TERMUX_PKG_EXTRA_CONFIGURE_ARGS=""
-export LDFLAGS="$LDFLAGS -lnativewindow -landroid -lsync -llog -lEGL -lGLESv2"
 termux_step_post_get_source() {
     echo "[*] 启动云端源码重塑，修复 Android NDK 与 X11 的跨界类型冲突..."
     local F1="host/gl/glestranslator/egl/egl_os_api_egl.cpp"
@@ -44,6 +43,11 @@ termux_step_post_get_source() {
     
     echo "[*] 强行烙印安卓 Vulkan 上帝宏！"
     sed -i '1i add_compile_definitions(VK_USE_PLATFORM_ANDROID_KHR=1)' CMakeLists.txt
+}
+termux_step_pre_configure() {
+    echo "[*] 在编译器初始化后，强行给交叉编译链注入 Android 物理驱动库依赖！"
+    # 使用 ${LDFLAGS:-} 绝对防御 set -u 报错，缺什么补什么！
+    export LDFLAGS="${LDFLAGS:-} -lnativewindow -landroid -lsync -llog -lEGL -lGLESv2"
 }
 # ！！！【胜利的收尾：带全盘雷达的手动安装劫持】！！！
 termux_step_make_install() {
