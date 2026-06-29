@@ -9,7 +9,7 @@ TERMUX_PKG_BUILD_DEPENDS="libx11"
 
 TERMUX_PKG_API_LEVEL=28
 TERMUX_PKG_EXTRA_CONFIGURE_ARGS=""
-
+export LDFLAGS="$LDFLAGS -lnativewindow -landroid -lsync -llog -lEGL -lGLESv2"
 termux_step_post_get_source() {
     echo "[*] 启动云端源码重塑，修复 Android NDK 与 X11 的跨界类型冲突..."
     local F1="host/gl/glestranslator/egl/egl_os_api_egl.cpp"
