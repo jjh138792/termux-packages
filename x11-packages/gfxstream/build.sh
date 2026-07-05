@@ -97,9 +97,6 @@ termux_step_pre_configure() {
     # ！！！【吸取教训：绝对不在 LDFLAGS 里放任何编译环境没有的库】！！！
     # 剔除 -lcutils，剩下的库只要 NDK sysroot 里有就能过 CMake 编译器测试！
     export LDFLAGS="${LDFLAGS:-} -lcutils -lnativewindow -landroid -lsync -llog -lEGL -lGLESv2"
-    
-    export CFLAGS="${CFLAGS:-} -D__ANDROID__=1 -DANDROID=1"
-    export CXXFLAGS="${CXXFLAGS:-} -D__ANDROID__=1 -DANDROID=1"
 }
 
 termux_step_make_install() {
