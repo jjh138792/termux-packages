@@ -44,7 +44,8 @@ termux_step_post_get_source() {
     # ！！！【举一反三：直接秒杀 cutils/native_handle.h 缺失报错】！！！
     # 既然它是 AOSP 私有库，我们直接用 sed 把这个 #include 替换成一个标准的 native_handle_t 结构体定义！
     echo "[*] 正在执行举一反三：注入 native_handle_t 结构体..."
-    find . -name "vk_android_native_buffer_gfxstream.h" -exec sed -i 's|#include <cutils/native_handle.h>|typedef struct native_handle { int version; int numFds; int numInts; int data[0]; } native_handle_t;|g' {} \;
+	sed -i 's|#include <cutils/native_handle.h>|typedef struct native_handle { int version; int numFds; int numInts; int data[0]; } native_handle_t;|g' host/vulkan/vk_android_native_buffer_gfxstream.h
+	
     # ！！！【坚守底线：强行烙印安卓纯血上帝宏，唤醒内核检测代码】！！！
     echo "[*] 强行烙印安卓纯血上帝宏，让它的检测逻辑完全复活！"
     sed -i '1i add_compile_definitions(VK_USE_PLATFORM_ANDROID_KHR=1 ANDROID=1 __ANDROID__=1)' CMakeLists.txt
@@ -61,6 +62,8 @@ termux_step_pre_configure() {
 
 termux_step_make_install() {
     echo "[*] 启动手动安装劫持，全盘搜捕野生 libgfxstream_backend.so..."
+
+	
     local SO_FILE=$(find . -name "libgfxstream_backend.so" | head -n 1)
     
     if [ -z "$SO_FILE" ]; then
