@@ -9,6 +9,7 @@ TERMUX_PKG_BUILD_DEPENDS="libx11"
 
 TERMUX_PKG_API_LEVEL=28
 TERMUX_PKG_EXTRA_CONFIGURE_ARGS=""
+
 termux_step_post_get_source() {
     echo "[*] 启动云端源码重塑，修复 Android NDK 与 X11 的跨界类型冲突..."
     local F1="host/gl/glestranslator/egl/egl_os_api_egl.cpp"
@@ -41,14 +42,21 @@ termux_step_post_get_source() {
     # ！！！【黎明前最后的绝杀：测试组件的返回值强转】！！！
     sed -i 's/return mWindow;/return (EGLNativeWindowType)(uintptr_t)mWindow;/g' $F6
     
-    echo "[*] 强行烙印安卓 Vulkan 上帝宏！"
-    sed -i '1i add_compile_definitions(VK_USE_PLATFORM_ANDROID_KHR=1)' CMakeLists.txt
+    echo "[*] 强行烙印安卓纯血上帝宏，唤醒沉睡的内核检测代码！"
+    # 【核心修改点】同时注入 ANDROID 和 __ANDROID__，让所有死代码复活！
+    sed -i '1i add_compile_definitions(VK_USE_PLATFORM_ANDROID_KHR=1 ANDROID=1 __ANDROID__=1)' CMakeLists.txt
 }
+
 termux_step_pre_configure() {
-    echo "[*] 在编译器初始化后，强行给交叉编译链注入 Android 物理驱动库依赖！"
+    echo "[*] 在编译器初始化后，强行给交叉编译链注入 Android 物理驱动库及宏依赖！"
     # 使用 ${LDFLAGS:-} 绝对防御 set -u 报错，缺什么补什么！
     export LDFLAGS="${LDFLAGS:-} -lnativewindow -landroid -lsync -llog -lEGL -lGLESv2"
+    
+    # 【核心修改点】双保险：强迫所有 C/C++ 源码承认自己运行在 Android 躯体上
+    export CFLAGS="${CFLAGS:-} -D__ANDROID__=1 -DANDROID=1"
+    export CXXFLAGS="${CXXFLAGS:-} -D__ANDROID__=1 -DANDROID=1"
 }
+
 # ！！！【胜利的收尾：带全盘雷达的手动安装劫持】！！！
 termux_step_make_install() {
     echo "[*] 启动手动安装劫持，全盘搜捕野生 libgfxstream_backend.so..."
@@ -76,5 +84,5 @@ Libs: -L${TERMUX_PREFIX}/lib -lgfxstream_backend
 Cflags: -I${TERMUX_PREFIX}/include
 PC_EOF
     
-    echo "[*] Gfxstream 满血版部署完毕！"
+    echo "[*] Gfxstream 满血唤醒版部署完毕！"
 }
