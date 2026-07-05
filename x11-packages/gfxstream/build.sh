@@ -31,7 +31,7 @@ termux_step_post_get_source() {
     # VNDK 私有库依赖清洗
     sed -i 's/<vndk\/hardware_buffer.h>/<android\/hardware_buffer.h>/g' $F4
 
-    # 原生子窗口的 X11 冲突清洗（先斩后奏战术）
+    # 原生子窗口的 X11 冲突清洗
     sed -i 's/p_window,/(Window)(uintptr_t)p_window,/g' $F5
     sed -i 's/p_sub_window,/(Window)(uintptr_t)p_sub_window,/g' $F5
     sed -i 's/return win;/return (EGLNativeWindowType)(uintptr_t)win;/g' $F5
@@ -39,29 +39,29 @@ termux_step_post_get_source() {
     sed -i 's/FBNativeWindowType (Window)(uintptr_t)p_window,/FBNativeWindowType p_window,/g' $F5
     sed -i 's/EGLNativeWindowType (Window)(uintptr_t)p_sub_window,/EGLNativeWindowType p_sub_window,/g' $F5
     
-    # ！！！【黎明前最后的绝杀：测试组件的返回值强转】！！！
     sed -i 's/return mWindow;/return (EGLNativeWindowType)(uintptr_t)mWindow;/g' $F6
     
-    echo "[*] 强行烙印安卓纯血上帝宏，唤醒沉睡的内核检测代码！"
-    # 【核心修改点】同时注入 ANDROID 和 __ANDROID__，让所有死代码复活！
+    # ！！！【举一反三：直接秒杀 cutils/native_handle.h 缺失报错】！！！
+    # 既然它是 AOSP 私有库，我们直接用 sed 把这个 #include 替换成一个标准的 native_handle_t 结构体定义！
+    echo "[*] 正在执行举一反三：注入 native_handle_t 结构体..."
+    sed -i 's|#include <cutils/native_handle.h>|typedef struct native_handle { int version; int numFds; int numInts; int data[0]; } native_handle_t;|g' host/vk_android_native_buffer_gfxstream.h
+    
+    # ！！！【坚守底线：强行烙印安卓纯血上帝宏，唤醒内核检测代码】！！！
+    echo "[*] 强行烙印安卓纯血上帝宏，让它的检测逻辑完全复活！"
     sed -i '1i add_compile_definitions(VK_USE_PLATFORM_ANDROID_KHR=1 ANDROID=1 __ANDROID__=1)' CMakeLists.txt
 }
 
 termux_step_pre_configure() {
     echo "[*] 在编译器初始化后，强行给交叉编译链注入 Android 物理驱动库及宏依赖！"
-    # 使用 ${LDFLAGS:-} 绝对防御 set -u 报错，缺什么补什么！
     export LDFLAGS="${LDFLAGS:-} -lnativewindow -landroid -lsync -llog -lEGL -lGLESv2"
     
-    # 【核心修改点】双保险：强迫所有 C/C++ 源码承认自己运行在 Android 躯体上
+    # 双保险：强迫所有 C/C++ 源码承认自己运行在 Android 躯体上
     export CFLAGS="${CFLAGS:-} -D__ANDROID__=1 -DANDROID=1"
     export CXXFLAGS="${CXXFLAGS:-} -D__ANDROID__=1 -DANDROID=1"
 }
 
-# ！！！【胜利的收尾：带全盘雷达的手动安装劫持】！！！
 termux_step_make_install() {
     echo "[*] 启动手动安装劫持，全盘搜捕野生 libgfxstream_backend.so..."
-    
-    # 使用 find 命令进行物理追踪，无视 CMake 的乱放行为！
     local SO_FILE=$(find . -name "libgfxstream_backend.so" | head -n 1)
     
     if [ -z "$SO_FILE" ]; then
@@ -71,10 +71,8 @@ termux_step_make_install() {
     
     echo "[*] 成功捕获目标：$SO_FILE"
     
-    # 强行塞进 Termux 的标准系统库目录
     install -Dm755 "$SO_FILE" $TERMUX_PREFIX/lib/libgfxstream_backend.so
     
-    # 伪造 pkg-config 身份证！这是打通 Rust (Rutabaga) 和 C++ (Gfxstream) 的终极桥梁！
     mkdir -p $TERMUX_PREFIX/lib/pkgconfig
     cat << PC_EOF > $TERMUX_PREFIX/lib/pkgconfig/gfxstream_backend.pc
 Name: gfxstream_backend
@@ -84,5 +82,5 @@ Libs: -L${TERMUX_PREFIX}/lib -lgfxstream_backend
 Cflags: -I${TERMUX_PREFIX}/include
 PC_EOF
     
-    echo "[*] Gfxstream 满血唤醒版部署完毕！"
+    echo "[*] Gfxstream 原汁原味 Android 逻辑复活版部署完毕！"
 }
