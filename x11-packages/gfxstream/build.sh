@@ -7,7 +7,7 @@ TERMUX_PKG_GIT_BRANCH="main"
 TERMUX_PKG_DEPENDS="libc++, libdrm, libx11"
 TERMUX_PKG_BUILD_DEPENDS="libx11, curl"
 
-TERMUX_PKG_API_LEVEL=28
+TERMUX_PKG_API_LEVEL=29
 TERMUX_PKG_EXTRA_CONFIGURE_ARGS=""
 
 termux_step_post_get_source() {
@@ -55,7 +55,9 @@ EOF
 
     # 编译并物理塞入默认寻找路径
     $CC $CFLAGS -shared -fPIC cutils_stub.c -o $TERMUX_PREFIX/lib/libcutils.so
-    
+    echo "[*] 启动祖宗级修复：在 CMake 源码列表中强行替换 Udmabuf 核心..."
+    local BASE_CMAKE="common/base/CMakeLists.txt"
+    sed -i 's/UdmabufCreator_stub.cpp/UdmabufCreator_linux.cpp/g' "$BASE_CMAKE"
     echo "[*] 存根库归位！注入最干净的原生链接参数..."
     # 只有单纯的 -l 参数，让链接器自己去默认路径里抓！
     export LDFLAGS="${LDFLAGS:-} -lcutils -lnativewindow -landroid -lsync -llog -lEGL -lGLESv2"
