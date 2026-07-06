@@ -4,6 +4,7 @@ TERMUX_PKG_LICENSE="BSD"
 # ！！！【文书修复：给打包系统指明 License 文件的位置】！！！
 TERMUX_PKG_LICENSE_FILE="repo/LICENSE"
 TERMUX_PKG_VERSION=0.1.76
+TERMUX_DEBUG_BUILD=ture
 TERMUX_PKG_SKIP_SRC_EXTRACT=true
 
 TERMUX_PKG_DEPENDS="gfxstream, virglrenderer"
