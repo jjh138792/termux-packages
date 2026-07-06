@@ -2,6 +2,7 @@ TERMUX_PKG_HOMEPAGE=https://github.com/google/gfxstream
 TERMUX_PKG_DESCRIPTION="Graphics Streaming Kit (Gfxstream Backend)"
 TERMUX_PKG_LICENSE="Apache-2.0"
 TERMUX_PKG_VERSION=1.0.0
+TERMUX_DEBUG_BUILD=ture
 TERMUX_PKG_SRCURL="git+https://github.com/google/gfxstream.git"
 TERMUX_PKG_GIT_BRANCH="main"
 TERMUX_PKG_DEPENDS="libc++, libdrm, libx11"
